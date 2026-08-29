@@ -35,7 +35,7 @@ test('bounded agent run plans change only allow-listed visualization parameters'
 
 test('source-backed recipe registry exposes the complex book cases', async () => {
   const recipes = await listRecipes()
-  assert.deepEqual(recipes.map((recipe) => recipe.id), ['mammal-traits', 'candida-auris', 'hmp-microbiome', 'hpv58'])
+  assert.deepEqual(recipes.map((recipe) => recipe.id), ['mammal-traits', 'candida-auris', 'hmp-microbiome', 'salmonella-typhi', 'hpv58'])
 })
 
 test('annotation envelopes are bound to scene node and artifact hashes', () => {

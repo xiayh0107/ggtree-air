@@ -39,6 +39,13 @@
         {"name": "hmp-bars.csv", "path": "data-backup/HMP_tree/barplot_attr.csv", "sha256": "f91b0126a8bb4e6bc731ba6f382113168dc16ee093a6eed0079a1b8d64e5ffe0"}
       ]
     },
+    "salmonella-typhi": {
+      "description": "1,832 Salmonella Typhi isolates used to study the global spread of the multidrug-resistant H58 clade.",
+      "files": [
+        {"name": "salmonella-typhi-tree.nwk", "path": "data-backup/microreact/Salmonella_Typhi/microreact-project-NJIDqgsS-tree.nwk", "sha256": "0ffaf03457b7673cde93eeb23857b3f06ae119a6d612ac9b4e159e6ba7f0a0a7"},
+        {"name": "salmonella-typhi-metadata.csv", "path": "data-backup/microreact/Salmonella_Typhi/microreact-project-NJIDqgsS-data.csv", "sha256": "be204de4a1c8cb34c7775e9bd79ec181b15c292acd09d21af869c41060fb99dd"}
+      ]
+    },
     "hpv58": {
       "description": "HPV58 lineage tree used for clade and sequence-distance examples (treedata-book chapter 13).",
       "files": [

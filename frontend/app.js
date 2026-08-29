@@ -47,6 +47,7 @@
     tree: '<path d="M12 3v5M5 21v-5h14v5M5 16v-4h14v4M12 8v4"/><circle cx="5" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>',
     feedback: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8M8 13h5"/>',
     branches: '<circle cx="6" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="6" cy="20" r="2"/><path d="M6 6v12M8 7c4 0 4 1 8 1M8 17c4 0 4-5 8-7"/>',
+    folder: '<path d="M3 6h7l2 2h9v11H3z"/><path d="M3 6V4h7l2 2"/>',
     science: '<path d="M9 3h6M10 3v5l-5 9a3 3 0 0 0 2.6 4.5h8.8A3 3 0 0 0 19 17l-5-9V3"/><path d="M8 15h8"/>',
     open: '<path d="M14 3h7v7M10 14 21 3M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/>',
     fit: '<path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/>',
@@ -1090,6 +1091,37 @@
     return job
   }
 
+  async function openWorkspacePanel() {
+    drawer.innerHTML = `<div class="drawer-header"><div class="node-icon">${icon('folder')}</div><div class="drawer-heading"><h2>工作空间</h2><p>当前工作与真实论文 Demo</p></div><div class="drawer-header-actions"><button class="icon-button" data-close>${icon('close')}</button></div></div><div class="workspace-panel"><section><h3>当前工作空间</h3><div class="workspace-current"><strong>${escapeHtml(payload.workspace.title)}</strong><span>${scene.tree.tips} tips · ${scene.views.length} layouts · ${protocolActions.length} 次人机交互</span></div></section><section><div class="workspace-section-head"><h3>真实论文 Demo</h3><a href="https://github.com/xiayh0107/ggtree-air/blob/main/docs/REAL_WORLD_DEMOS.md" target="_blank" rel="noreferrer">来源说明</a></div><div class="demo-grid" id="demo-grid"><p class="workspace-loading">正在读取 Demo…</p></div></section></div>`
+    drawer.querySelector('[data-close]').addEventListener('click', closeDrawer)
+    openDrawer()
+    const grid = drawer.querySelector('#demo-grid')
+    if (!liveApi) {
+      grid.innerHTML = '<p class="workspace-loading">离线报告无法创建 Demo，请通过本地服务打开。</p>'
+      return
+    }
+    try {
+      const response = await apiFetch('/api/demos')
+      grid.innerHTML = response.demos.map((demo) => `<article class="demo-card"><div class="demo-card-top"><span>${escapeHtml(demo.domain)}</span><em>${demo.installed ? '已创建' : '内置 Demo'}</em></div><h4>${escapeHtml(demo.title)}</h4><p class="demo-paper">${escapeHtml(demo.paper.authors)} · ${escapeHtml(demo.paper.journal)} ${demo.paper.year}</p><p>${escapeHtml(demo.story)}</p><div class="demo-card-actions"><a href="https://doi.org/${encodeURIComponent(demo.paper.doi)}" target="_blank" rel="noreferrer">论文 DOI</a><button type="button" class="secondary-button" data-open-demo="${escapeHtml(demo.id)}">${demo.installed ? '打开工作空间' : '创建并打开'}</button></div></article>`).join('')
+      grid.querySelectorAll('[data-open-demo]').forEach((button) => button.addEventListener('click', async () => {
+        button.disabled = true
+        button.textContent = '正在准备…'
+        try {
+          const result = await apiFetch(`/api/demos/${button.dataset.openDemo}/open`, {
+            method: 'POST', body: '{}',
+          })
+          location.href = result.url
+        } catch (error) {
+          showToast(`Demo 打开失败：${error.message}`)
+          button.disabled = false
+          button.textContent = '重试'
+        }
+      }))
+    } catch (error) {
+      grid.innerHTML = `<p class="workspace-loading">无法读取 Demo：${escapeHtml(error.message)}</p>`
+    }
+  }
+
   function openBranchDrawer() {
     const branches = Object.values(payload.workspace.branches || {})
     const current = payload.workspace.current_branch || 'main'
@@ -1293,7 +1325,9 @@
   document.getElementById('zoom-in').addEventListener('click', () => setZoom(camera.zoom * 1.12))
   document.getElementById('zoom-out').addEventListener('click', () => setZoom(camera.zoom / 1.12))
   document.querySelector('[data-tool="fit"]').innerHTML = icon('fit')
+  document.querySelector('[data-tool="workspaces"]').innerHTML = icon('folder')
   document.querySelector('[data-tool="fit"]').addEventListener('click', () => fitNodes())
+  document.querySelector('[data-tool="workspaces"]').addEventListener('click', () => void openWorkspacePanel())
   rerunButton.addEventListener('click', rerun)
   window.addEventListener('keydown', (event) => { if (event.key === 'Escape' && drawer.classList.contains('open')) closeDrawer() })
 

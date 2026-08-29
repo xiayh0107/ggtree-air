@@ -64,6 +64,25 @@
       }
     },
     {
+      "id": "salmonella-typhi",
+      "title": "Salmonella Typhi · H58 global transmission",
+      "description": "1,832 isolates with country, collection year and H58 haplotype metadata.",
+      "source_case": "salmonella-typhi",
+      "prepare": null,
+      "spec": {
+        "tree": "salmonella-typhi-tree.nwk",
+        "metadata": "salmonella-typhi-metadata.csv",
+        "tip_column": "id",
+        "group_column": "country",
+        "heatmap_columns": ["year", "haplotype"],
+        "layouts": ["fan", "rectangular"],
+        "intents": ["tipcolor", "heatmap", "treescale"],
+        "tip_labels": "hide",
+        "render": {"width": 14, "height": 12, "dpi": 100, "formats": ["png"]},
+        "subtitle": "Wong et al., Nature Genetics 2015 · 1,832 isolates"
+      }
+    },
+    {
       "id": "hpv58",
       "title": "HPV58 · lineage and sequence distance",
       "description": "90 complete genomes, eight named lineages and mean/max pairwise nucleotide-distance tracks.",

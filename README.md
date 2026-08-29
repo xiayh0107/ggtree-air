@@ -163,16 +163,21 @@ Skill 使用普通文件和 CLI 协议，不绑定特定模型厂商或 Agent SD
 
 ---
 
-## 内置真实案例
+## 内置真实论文 Demo
 
-案例数据来自固定 commit，并校验 SHA-256：
+点击画布左侧的“工作空间”按钮，可以直接看到、创建和打开论文 Demo。每个 Demo 都显示论文、DOI、真实数据场景以及一段模拟的人—Agent 修改历史。
 
-- **mammal-traits**：营养类型、体重和关联数据；
-- **candida-auris**：抗真菌耐药和靶点突变；
-- **hmp-microbiome**：334 tips、14 phyla、7 个身体部位轨道；
-- **hpv58**：90 个完整基因组、8 个 lineage 和序列距离。
+数据来自固定 commit，并校验 SHA-256：
 
-你可以直接对 Agent 说：
+- **物种性状关联图** — Yu et al., *Molecular Biology and Evolution* 2018；
+- **Candida auris 耐药与突变** — Chow et al., *mBio* 2020；
+- **HMP 身体部位丰度** — Morgan et al., *Trends in Genetics* 2013；
+- **Salmonella Typhi H58 全球传播** — Wong et al., *Nature Genetics* 2015；
+- **HPV58 谱系与序列距离** — Chen et al., *Journal of Virology* 2017。
+
+完整论文与场景来源见 [`docs/REAL_WORLD_DEMOS.md`](docs/REAL_WORLD_DEMOS.md)。
+
+你也可以直接对 Agent 说：
 
 ```text
 用 hmp-microbiome 案例创建工作流并打开给我看，然后继续等待我的修改。

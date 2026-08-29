@@ -13,6 +13,7 @@ import {
   listActions, markActionRunning, updateActionProgress, waitForAction,
 } from './actions.mjs'
 import { bundledSkillPath, installBundledSkill, listBundledSkills } from './skill-manager.mjs'
+import { createPaperDemo, listPaperDemos, openPaperDemo } from './demos.mjs'
 
 const VERSION = '0.5.0'
 
@@ -23,6 +24,7 @@ Usage:
   ggtree-air check
   ggtree-air setup-r [--with-msa] [--with-recipes]
   ggtree-air skills list|path|install
+  ggtree-air demos list|create|open
   ggtree-air recipes list
   ggtree-air recipes run CASE --out WORKSPACE [--force]
   ggtree-air auto --input TREE_OR_FASTA [--metadata TABLE] [--out WORKSPACE]
@@ -144,6 +146,34 @@ async function setupR(tokens) {
   })
   if (status !== 0) throw new Error(`R dependency setup failed with exit code ${status}`)
   return check()
+}
+
+async function demos(tokens) {
+  const [action = 'list', id, ...rest] = tokens
+  if (action === 'list') {
+    const values = await listPaperDemos()
+    console.log(values.map((demo) =>
+      `${demo.id.padEnd(20)} ${demo.installed ? 'installed' : 'available'}  ${demo.title}\n${''.padEnd(21)}${demo.paper.authors}, ${demo.paper.journal} ${demo.paper.year} · ${demo.paper.doi}`
+    ).join('\n'))
+    return 0
+  }
+  if (!id || !['create', 'open'].includes(action)) {
+    throw new Error('Use `demos list`, `demos create ID`, or `demos open ID`')
+  }
+  const options = parseArgs(rest, new Set(['force', 'no_browser']))
+  assertKnownOptions(options, ['force', 'no_browser'])
+  const result = action === 'open'
+    ? await openPaperDemo(id, {
+      force: Boolean(options.force), browser: !options.no_browser,
+      onLog: (chunk) => process.stderr.write(chunk),
+    })
+    : await createPaperDemo(id, {
+      force: Boolean(options.force), onLog: (chunk) => process.stderr.write(chunk),
+    })
+  console.log(JSON.stringify({
+    id: result.demo.id, root: result.root, url: result.service?.url || null,
+  }, null, 2))
+  return 0
 }
 
 async function recipes(tokens) {
@@ -507,6 +537,7 @@ export async function main(argv = process.argv.slice(2)) {
   if (command === 'check') return check()
   if (command === 'skills') return skills(tokens)
   if (command === 'setup-r') return setupR(tokens)
+  if (command === 'demos') return demos(tokens)
   if (command === 'recipes') return recipes(tokens)
   if (command === 'auto') return auto(tokens)
   if (command === 'actions') return actions(tokens)

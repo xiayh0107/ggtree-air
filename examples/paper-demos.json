@@ -1,0 +1,120 @@
+{
+  "schema_version": "1.0.0",
+  "demos": [
+    {
+      "id": "associated-data",
+      "recipe": "mammal-traits",
+      "title": "把物种性状映射到系统发育树",
+      "domain": "比较生物学 / 方法示例",
+      "paper": {
+        "title": "Two Methods for Mapping and Visualizing Associated Data on Phylogeny Using ggtree",
+        "authors": "Yu et al.",
+        "journal": "Molecular Biology and Evolution",
+        "year": 2018,
+        "doi": "10.1093/molbev/msy194"
+      },
+      "evidence": "map and visualize associated data on phylogeny",
+      "story": "用户先得到基础树，再要求把营养类型映射到颜色/形状、把体重映射到点大小，并增加关联数据轨道。",
+      "actions": [
+        {
+          "layout": "rectangular",
+          "instruction": "把营养类型映射到颜色和形状，把体重映射到点大小，并保留清晰图例。",
+          "output": "tree_rectangular_intents.png",
+          "label": "物种性状关联图"
+        }
+      ]
+    },
+    {
+      "id": "candida-resistance",
+      "recipe": "candida-auris",
+      "title": "Candida auris 全球传播与耐药突变",
+      "domain": "真菌群体基因组 / 分子流行病学",
+      "paper": {
+        "title": "Tracing the Evolutionary History and Global Expansion of Candida auris Using Population Genomic Analyses",
+        "authors": "Chow et al.",
+        "journal": "mBio",
+        "year": 2020,
+        "doi": "10.1128/mBio.03364-19"
+      },
+      "evidence": "compared the genomes of 304 C. auris isolates from 19 countries",
+      "story": "用户希望同时看到四个主要 clade、三类抗真菌药耐药状态以及 ERG11/FKS1 靶点突变。",
+      "actions": [
+        {
+          "layout": "fan",
+          "instruction": "用紧凑的扇形树展示四个 clade，并在外圈同时呈现 FCZ、AMB、MCF 耐药和 ERG11/FKS1 突变。",
+          "output": "tree_fan_intents.png",
+          "label": "C. auris 耐药与突变图"
+        }
+      ]
+    },
+    {
+      "id": "hmp-body-sites",
+      "recipe": "hmp-microbiome",
+      "title": "人体微生物组身体部位丰度轨道",
+      "domain": "微生物组",
+      "paper": {
+        "title": "Biodiversity and functional genomics in the human microbiome",
+        "authors": "Morgan, Segata and Huttenhower",
+        "journal": "Trends in Genetics",
+        "year": 2013,
+        "doi": "10.1016/j.tig.2012.09.005"
+      },
+      "evidence": "relative abundance of the microbiome at different body sites",
+      "story": "用户面对 334 个微生物 tips，需要按 phylum 着色，并把七个身体部位的丰度压缩成可读外圈。",
+      "actions": [
+        {
+          "layout": "fan",
+          "instruction": "按 phylum 给 tips 分组，用形状区分潜在病原体和共生菌，并把七个身体部位丰度排成外圈。",
+          "output": "tree_fan_intents.png",
+          "label": "HMP 身体部位丰度图"
+        }
+      ]
+    },
+    {
+      "id": "typhi-h58",
+      "recipe": "salmonella-typhi",
+      "title": "1,832 株 Salmonella Typhi 的 H58 全球传播",
+      "domain": "细菌基因组流行病学",
+      "paper": {
+        "title": "Phylogeographical analysis of the dominant multidrug-resistant H58 clade of Salmonella Typhi identifies inter- and intracontinental transmission events",
+        "authors": "Wong et al.",
+        "journal": "Nature Genetics",
+        "year": 2015,
+        "doi": "10.1038/ng.3281"
+      },
+      "evidence": "identifies inter- and intracontinental transmission events",
+      "story": "用户要在超大树中同时观察国家、采样年份和 H58 haplotype，并隐藏不可读的 tip 标签。",
+      "actions": [
+        {
+          "layout": "fan",
+          "instruction": "为 1,832 株样本创建无密集标签的扇形概览，按国家着色，并用外圈展示年份和 H58 haplotype。",
+          "output": "tree_fan_intents.png",
+          "label": "S. Typhi H58 全球传播图"
+        }
+      ]
+    },
+    {
+      "id": "hpv58-lineages",
+      "recipe": "hpv58",
+      "title": "HPV58 谱系与全基因组序列距离",
+      "domain": "病毒进化",
+      "paper": {
+        "title": "Ancient Evolution and Dispersion of Human Papillomavirus 58 Variants",
+        "authors": "Chen et al.",
+        "journal": "Journal of Virology",
+        "year": 2017,
+        "doi": "10.1128/JVI.01285-17"
+      },
+      "evidence": "phylogenetic analyses ... deep evolutionary history of HPV58",
+      "story": "用户希望标出八个 lineage，并把 90 个完整基因组的平均/最大成对距离与树对齐。",
+      "actions": [
+        {
+          "layout": "rectangular",
+          "instruction": "标出 A1/A2/A3、B1/B2、C、D1/D2 八个 lineage，并对齐平均与最大核苷酸距离。",
+          "output": "tree_rectangular_intents.png",
+          "label": "HPV58 谱系与序列距离图"
+        }
+      ]
+    }
+  ]
+}

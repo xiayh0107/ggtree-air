@@ -21,6 +21,7 @@
     "renderer/r/worker.R",
     "renderer/r/install-dependencies.R",
     "renderer/r/fixtures/",
+    "examples/paper-demos.json",
     "examples/treedata-book/catalog.json",
     "examples/treedata-book/workflows.json",
     "examples/treedata-book/fetch.mjs",
@@ -29,6 +30,7 @@
     "examples/treedata-book/README.md",
     "docs/schemas/",
     "docs/agent-setup.md",
+    "docs/REAL_WORLD_DEMOS.md",
     "skills/",
     "README.md"
   ],

@@ -31,6 +31,12 @@ test('canvas report exposes semantic nodes and persists feedback', { timeout: 18
     assert.equal(await page.locator('.canvas-node').count(), 2)
     assert.equal(await page.locator('#connection-status').textContent(), '后端已连接')
 
+    await page.locator('[data-tool="workspaces"]').click()
+    await page.locator('.demo-card').first().waitFor({ timeout: 15_000 })
+    assert.equal(await page.locator('.demo-card').count(), 5)
+    assert.match(await page.locator('.demo-card').nth(1).textContent(), /Candida auris/)
+    await page.locator('[data-close]').click()
+
     await page.locator('[data-node-id="view-r1-rectangular"] [data-edit-node]').click()
     assert.equal(await page.locator('#node-composer:not([hidden])').count(), 1)
     assert.equal(await page.locator('#node-composer-input').count(), 1)

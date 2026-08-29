@@ -10,6 +10,7 @@ import {
   claimAction, commitActionArtifacts, createAction, failAction, getAction,
   listActions, markActionRunning, updateActionProgress,
 } from './actions.mjs'
+import { listPaperDemos, openPaperDemo } from './demos.mjs'
 
 const MAX_BODY_BYTES = 1024 * 1024
 
@@ -95,6 +96,22 @@ export async function startWorkspaceServer({ root, host = '127.0.0.1', port = 0,
       }
       if (request.method === 'GET' && url.pathname === '/api/workspace') {
         jsonResponse(response, 200, await workspaceSummary(root))
+        return
+      }
+      if (request.method === 'GET' && url.pathname === '/api/demos') {
+        jsonResponse(response, 200, { demos: await listPaperDemos() })
+        return
+      }
+      const demoOpenMatch = url.pathname.match(/^\/api\/demos\/([^/]+)\/open$/)
+      if (request.method === 'POST' && demoOpenMatch) {
+        requireMutationToken(request, token)
+        const body = await readJsonBody(request)
+        const result = await openPaperDemo(demoOpenMatch[1], {
+          force: Boolean(body.force), browser: false, onLog,
+        })
+        jsonResponse(response, 200, {
+          id: result.demo.id, root: result.root, url: result.service.url,
+        })
         return
       }
       if (request.method === 'GET' && url.pathname === '/api/branches') {
