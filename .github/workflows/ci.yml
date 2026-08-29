@@ -21,6 +21,7 @@ jobs:
       - uses: r-lib/actions/setup-pandoc@v2
       - run: npm ci
       - run: Rscript renderer/r/install-dependencies.R --with-recipes
+      - run: Rscript -e 'install.packages("testthat")'
       - run: npx playwright install --with-deps chromium
       - run: npm run syntax
       - run: npm test
