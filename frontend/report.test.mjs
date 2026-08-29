@@ -75,8 +75,9 @@ test('canvas report exposes semantic nodes and persists feedback', { timeout: 18
     })
     const pending = await (await fetch(`${service.url}/api/actions?status=pending`)).json()
     const actionId = pending.actions[0].id
-    assert.equal(await page.locator(`[data-node-id="agent-action-${actionId}"]`).count(), 1)
-    assert.match(await page.locator(`[data-node-id="agent-action-${actionId}"]`).textContent(), /等待 Agent/)
+    const actionNode = page.locator(`[data-node-id="agent-action-${actionId}"]`)
+    await actionNode.waitFor({ state: 'visible', timeout: 15_000 })
+    assert.match(await actionNode.textContent(), /等待 Agent/)
 
     const mutationHeaders = {
       'content-type': 'application/json',
