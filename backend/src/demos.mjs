@@ -1,6 +1,6 @@
 import os from 'node:os'
 import path from 'node:path'
-import { rm } from 'node:fs/promises'
+import { copyFile, mkdir, rm } from 'node:fs/promises'
 import { PROJECT_ROOT, pathExists, readJson } from './paths.mjs'
 import { runRecipe } from './recipes.mjs'
 import {
@@ -29,7 +29,7 @@ async function catalog() {
 
 export async function listPaperDemos() {
   const demos = await catalog()
-  return Promise.all(demos.map(async (demo) => {
+  return Promise.all(demos.filter((demo) => demo.status === 'verified').map(async (demo) => {
     const root = demoRoot(demo.id)
     const installed = await pathExists(path.join(root, 'workspace.json'))
     const service = installed ? await readServiceState(root) : null
@@ -43,20 +43,21 @@ export async function listPaperDemos() {
 }
 
 export async function createPaperDemo(id, { force = false, onLog = () => undefined } = {}) {
-  const demo = (await catalog()).find((candidate) => candidate.id === id)
-  if (!demo) throw new Error(`Unknown paper demo: ${id}`)
+  const demo = (await catalog()).find((candidate) => candidate.id === id && candidate.status === 'verified')
+  if (!demo) throw new Error(`Unknown or unverified paper demo: ${id}`)
   const root = demoRoot(id)
   if (force) await rm(root, { recursive: true, force: true })
   if (!await pathExists(path.join(root, 'workspace.json'))) {
     await runRecipe({ id: demo.recipe, outputDir: root, force: true, onLog })
     const referenceArtifact = await importWorkspaceArtifact(
       root, path.join(PROJECT_ROOT, 'examples', demo.reference_asset), {
-        label: `${demo.paper.authors} ${demo.paper.year} · 参考风格`,
+        label: `${demo.paper.authors} ${demo.paper.year} · 目标 Figure`,
         role: 'paper-reference',
         metadata: {
           paper: demo.paper,
           evidence: demo.evidence,
-          note: 'Paper-grounded style reference; see DOI and demo provenance.',
+          benchmark: demo.benchmark || 'style-transfer',
+          note: 'Verified target figure for a recorded user–Agent workflow; see DOI and provenance.',
         },
       },
     )
@@ -69,10 +70,16 @@ export async function createPaperDemo(id, { force = false, onLog = () => undefin
         ],
         instruction: scripted.instruction,
       })
-      const agent = `paper-demo:${demo.id}`
+      const agent = demo.recording?.agent || `recorded-demo:${demo.id}`
       await claimAction(root, action.id, agent)
       await markActionRunning(root, action.id, agent)
-      const output = path.join(root, scripted.output)
+      let output = path.join(root, scripted.output)
+      if (scripted.output_asset) {
+        const stagedDir = path.join(root, '.ggtree-air', 'demo-artifacts')
+        await mkdir(stagedDir, { recursive: true })
+        output = path.join(stagedDir, `${index + 1}-${path.basename(scripted.output_asset)}`)
+        await copyFile(path.join(PROJECT_ROOT, 'examples', scripted.output_asset), output)
+      }
       await updateActionProgress(root, action.id, {
         phase: 'preview', percent: 80,
         message: '已生成论文场景候选，正在检查图例与布局',

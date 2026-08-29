@@ -163,19 +163,17 @@ Skill 使用普通文件和 CLI 协议，不绑定特定模型厂商或 Agent SD
 
 ---
 
-## 内置真实论文 Demo
+## 经视觉验收的论文 Demo
 
-点击画布左侧的“工作空间”按钮，可以直接看到、创建和打开论文 Demo。每个 Demo 都显示论文、DOI、用户痛点、参考风格、用户数据，以及一段模拟的人—Agent 修改历史：`参考 Figure + 用户数据 → 用户原话 Action → Agent 产物`。
+内置画廊只展示达到质量门槛的 Demo，不再把普通 Recipe 包装成论文复现。每个 Demo 必须包含：目标 Figure、用户数据、用户原话、Agent 产物、可复现脚本和明确的 benchmark 类型。
 
-数据来自固定 commit，并校验 SHA-256：
+当前发布：
 
-- **物种性状关联图** — Yu et al., *Molecular Biology and Evolution* 2018；
-- **Candida auris 耐药与突变** — Chow et al., *mBio* 2020；
-- **HMP 身体部位丰度** — Morgan et al., *Trends in Genetics* 2013；
-- **Salmonella Typhi H58 全球传播** — Wong et al., *Nature Genetics* 2015；
-- **HPV58 谱系与序列距离** — Chen et al., *Journal of Virology* 2017。
+- **HMP 身体部位丰度（exact reproduction）** — 334 tips、phylum 编码、病原体/共生菌形状、23 个 clade 分区、七层身体部位 heatmap、外圈 abundance bars；输出为人工检查过的 4200 × 4200 PNG。
 
-完整论文与场景来源见 [`docs/REAL_WORLD_DEMOS.md`](docs/REAL_WORLD_DEMOS.md)。
+其余物种性状、Candida、Typhi 和 HPV58 场景仍是草稿，不会出现在内置画廊，直到逐图完成视觉验收。
+
+论文、数据、代码与版权来源见 [`docs/REAL_WORLD_DEMOS.md`](docs/REAL_WORLD_DEMOS.md)。
 
 你也可以直接对 Agent 说：
 

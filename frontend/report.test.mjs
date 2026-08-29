@@ -33,8 +33,8 @@ test('canvas report exposes semantic nodes and persists feedback', { timeout: 18
 
     await page.locator('[data-tool="workspaces"]').click()
     await page.locator('.demo-card').first().waitFor({ timeout: 15_000 })
-    assert.equal(await page.locator('.demo-card').count(), 5)
-    assert.match(await page.locator('.demo-card').nth(1).textContent(), /Candida auris/)
+    assert.equal(await page.locator('.demo-card').count(), 1)
+    assert.match(await page.locator('.demo-card').first().textContent(), /exact-reproduction.*身体部位/s)
     await page.locator('[data-close]').click()
 
     await page.locator('[data-node-id="view-r1-rectangular"] [data-edit-node]').click()

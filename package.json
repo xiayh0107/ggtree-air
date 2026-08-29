@@ -23,6 +23,7 @@
     "renderer/r/fixtures/",
     "examples/paper-demos.json",
     "examples/user-stories/assets/",
+    "examples/user-stories/hmp-body-sites/",
     "examples/treedata-book/catalog.json",
     "examples/treedata-book/workflows.json",
     "examples/treedata-book/fetch.mjs",

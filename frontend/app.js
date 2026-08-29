@@ -699,7 +699,7 @@
   }
 
   function openExternalArtifact(node) {
-    drawer.innerHTML = `<div class="drawer-header"><div class="node-icon">${icon('tree')}</div><div class="drawer-heading"><h2>${escapeHtml(node.artifact.label)}</h2><p>Agent 产物 · ${shortHash(node.artifact.md5)}</p></div><div class="drawer-header-actions"><button class="icon-button" data-close title="关闭">${icon('close')}</button></div></div><div class="drawer-canvas"><div class="image-frame"><img src="${node.artifact.data_uri || ''}" alt="${escapeHtml(node.artifact.label)}"></div></div>`
+    drawer.innerHTML = `<div class="drawer-header"><div class="node-icon">${icon('tree')}</div><div class="drawer-heading"><h2>${escapeHtml(node.artifact.label)}</h2><p>${node.artifact.role === 'paper-reference' ? '目标 Figure' : 'Agent 产物'} · ${shortHash(node.artifact.md5)}</p></div><div class="drawer-header-actions"><button class="icon-button" data-close title="关闭">${icon('close')}</button></div></div><div class="drawer-canvas"><div class="image-frame"><img src="${node.artifact.data_uri || ''}" alt="${escapeHtml(node.artifact.label)}"></div></div>`
     drawer.querySelector('[data-close]').addEventListener('click', closeDrawer)
     openDrawer()
   }
@@ -1117,7 +1117,7 @@
   }
 
   async function openWorkspacePanel() {
-    drawer.innerHTML = `<div class="drawer-header"><div class="node-icon">${icon('folder')}</div><div class="drawer-heading"><h2>工作空间</h2><p>当前工作与真实论文 Demo</p></div><div class="drawer-header-actions"><button class="icon-button" data-close>${icon('close')}</button></div></div><div class="workspace-panel"><section><h3>当前工作空间</h3><div class="workspace-current"><strong>${escapeHtml(payload.workspace.title)}</strong><span>${scene.tree.tips} tips · ${scene.views.length} layouts · ${protocolActions.length} 次人机交互</span></div></section><section><div class="workspace-section-head"><h3>真实论文 Demo</h3><a href="https://github.com/xiayh0107/ggtree-air/blob/main/docs/REAL_WORLD_DEMOS.md" target="_blank" rel="noreferrer">来源说明</a></div><div class="demo-grid" id="demo-grid"><p class="workspace-loading">正在读取 Demo…</p></div></section></div>`
+    drawer.innerHTML = `<div class="drawer-header"><div class="node-icon">${icon('folder')}</div><div class="drawer-heading"><h2>工作空间</h2><p>当前工作与经视觉验收的 Demo</p></div><div class="drawer-header-actions"><button class="icon-button" data-close>${icon('close')}</button></div></div><div class="workspace-panel"><section><h3>当前工作空间</h3><div class="workspace-current"><strong>${escapeHtml(payload.workspace.title)}</strong><span>${scene.tree.tips} tips · ${scene.views.length} layouts · ${protocolActions.length} 次人机交互</span></div></section><section><div class="workspace-section-head"><h3>已验收 Demo</h3><a href="https://github.com/xiayh0107/ggtree-air/blob/main/docs/REAL_WORLD_DEMOS.md" target="_blank" rel="noreferrer">来源说明</a></div><div class="demo-grid" id="demo-grid"><p class="workspace-loading">正在读取 Demo…</p></div></section></div>`
     drawer.querySelector('[data-close]').addEventListener('click', closeDrawer)
     openDrawer()
     const grid = drawer.querySelector('#demo-grid')
@@ -1127,7 +1127,7 @@
     }
     try {
       const response = await apiFetch('/api/demos')
-      grid.innerHTML = response.demos.map((demo) => `<article class="demo-card"><div class="demo-card-top"><span>${escapeHtml(demo.domain)}</span><em>${demo.installed ? '已创建' : '内置 Demo'}</em></div><h4>${escapeHtml(demo.title)}</h4><p class="demo-paper">${escapeHtml(demo.paper.authors)} · ${escapeHtml(demo.paper.journal)} ${demo.paper.year}</p><p>${escapeHtml(demo.story)}</p><div class="demo-card-actions"><a href="https://doi.org/${encodeURIComponent(demo.paper.doi)}" target="_blank" rel="noreferrer">论文 DOI</a><button type="button" class="secondary-button" data-open-demo="${escapeHtml(demo.id)}">${demo.installed ? '打开工作空间' : '创建并打开'}</button></div></article>`).join('')
+      grid.innerHTML = response.demos.map((demo) => `<article class="demo-card"><div class="demo-card-top"><span>${escapeHtml(demo.domain)}</span><em>${escapeHtml(demo.benchmark || '已验收')}</em></div><h4>${escapeHtml(demo.title)}</h4><p class="demo-paper">${escapeHtml(demo.paper.authors)} · ${escapeHtml(demo.paper.journal)} ${demo.paper.year}</p><p>${escapeHtml(demo.story)}</p><div class="demo-card-actions"><a href="https://doi.org/${encodeURIComponent(demo.paper.doi)}" target="_blank" rel="noreferrer">论文 DOI</a><button type="button" class="secondary-button" data-open-demo="${escapeHtml(demo.id)}">${demo.installed ? '打开工作空间' : '创建并打开'}</button></div></article>`).join('')
       grid.querySelectorAll('[data-open-demo]').forEach((button) => button.addEventListener('click', async () => {
         button.disabled = true
         button.textContent = '正在准备…'
