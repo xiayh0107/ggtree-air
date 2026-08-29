@@ -28,6 +28,7 @@
     "examples/treedata-book/prepare-hpv58.mjs",
     "examples/treedata-book/README.md",
     "docs/schemas/",
+    "docs/agent-setup.md",
     "skills/",
     "README.md"
   ],

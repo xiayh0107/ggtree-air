@@ -2,18 +2,26 @@
 
 > **把系统发育树交给任意 Agent：它负责读数据、画图、打开节点画布，并持续处理你的点选、框选、涂鸦和文字修改，直到你满意。**
 
-## 一句话开始
+## Agent 一键接入
 
-在存放树和关联数据的目录里打开你习惯的 Agent（Pi、Claude Code、Codex、OpenCode 等），复制这一句话：
+把下面整段复制到任意支持命令行和 Skill 的 Agent 对话窗口。Agent 会替你完成安装、环境检查、Skill 配置和首次使用；**不要自己执行里面的命令**。
 
 ```text
-使用 ggtree-air 内置的 ggtree-phylo skill，读取当前目录里的树和关联数据，生成并打开节点式工作流；随后保持等待画布中的 Action，逐条修改、预览并提交真实产物，直到我说满意。
+请阅读 https://github.com/xiayh0107/ggtree-air/blob/main/docs/agent-setup.md，严格按照文档为我安装并配置 ggtree-air。完成后请运行环境检查，安装或加载包内的 ggtree-phylo Skill；然后检查当前目录中的树和关联数据，创建并打开第一个节点工作流，并保持等待画布中的 Action，持续处理我的修改、预览和产物提交，直到我说满意。除非遇到必须由我决定的科学问题，否则不要让我手动执行命令、选择端口或配置 R 环境。
 ```
 
-如果 Agent 没有自动加载 Skill，可以显式说：
+GitHub 代码块右上角可以直接复制。
+
+### 已经接入后的日常提示词
 
 ```text
-/skill:ggtree-phylo 完成当前目录的系统发育树可视化，并持续处理画布反馈直到我满意。
+使用 ggtree-phylo Skill 处理当前目录的系统发育树，打开节点画布，并持续等待和处理我的画布反馈直到我满意。
+```
+
+Pi 也可以显式触发：
+
+```text
+/skill:ggtree-phylo 处理当前目录的系统发育树，并持续处理画布反馈直到我满意。
 ```
 
 **用户不需要选择端口、记命令、写 R、理解 ggtree API，或者管理 revision。**
