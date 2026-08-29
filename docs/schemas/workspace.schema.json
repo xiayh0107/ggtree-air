@@ -7,6 +7,7 @@
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "id": {"type": "string"},
+    "kind": {"enum": ["artifact-canvas", "phylogeny-render"]},
     "created": {"type": "string"},
     "updated": {"type": "string"},
     "revision": {"type": "integer", "minimum": 1},
@@ -17,9 +18,10 @@
     "status": {"enum": ["ready", "running", "error"]},
     "spec": {
       "type": "object",
-      "required": ["schema_version", "layouts", "intents", "render", "title"],
+      "required": ["title"],
       "properties": {
         "schema_version": {"const": "1.0.0"},
+        "kind": {"enum": ["artifact-canvas", "phylogeny-render"]},
         "tree": {"type": ["string", "null"]},
         "dist": {"type": ["string", "null"]},
         "fasta": {"type": ["string", "null"]},

@@ -81,24 +81,21 @@ ggtree-air skills install ggtree-phylo --agent agents --force
 - `.fa` / `.fasta` / `.fna` / `.faa`；
 - 与 tip id 匹配的 `.csv` / `.tsv` metadata。
 
-只有存在多个同样可信的生物学输入时才询问用户。否则自动创建：
+只有存在多个同样可信的生物学输入时才询问用户。否则创建只包含真实输入的任务画布；不要先跑 Recipe 生成无关的 fan/rectangular 产物：
 
 ```bash
-ggtree-air auto \
-  --input <tree-or-fasta> \
-  [--metadata <matching-table>] \
+ggtree-air workspace create \
   --out results/<meaningful-name> \
-  --no-open
+  --title "<用户的具体任务>"
+
+ggtree-air artifacts import --workspace results/<meaningful-name> \
+  --file <reference-figure> --role reference
+
+ggtree-air artifacts import --workspace results/<meaningful-name> \
+  --file <tree> --file <metadata> --role user-input
 ```
 
-距离矩阵文件名不明确时显式使用 `--dist`。
-
-若用户只是体验，可从真实案例中选择：
-
-```bash
-ggtree-air recipes list
-ggtree-air recipes run mammal-traits --out results/mammal --force
-```
+Renderer recipes 只用于集成测试，不得包装成用户—Agent 历史。
 
 ## 5. 打开画布，不让用户管理端口
 
@@ -108,9 +105,11 @@ ggtree-air open --workspace <workspace>
 
 `open` 会复用健康服务或选择空闲端口，并自动打开浏览器。只向用户报告“画布已打开”和必要的科学说明，不要求用户复制 URL 或选择端口。
 
-## 6. 保持等待，自动响应浏览器 Action
+## 6. 让真实 Agent 响应浏览器 Action
 
-打开浏览器后不要结束 Agent 回合。运行：
+默认 managed 模式会在用户提交节点指令后启动本机已安装的 Pi Agent CLI，不需要外层 Agent 再执行 `actions wait`。通过 `GET /api/agents` 或画布连接状态确认 Agent 可用。
+
+如果明确使用 `GGTREE_AIR_AGENT=none` 启动服务，则由外层 Agent 保持等待：
 
 ```bash
 ggtree-air actions wait \
@@ -119,7 +118,7 @@ ggtree-air actions wait \
   --timeout 3600
 ```
 
-用户在浏览器提交指令后，该命令会返回并自动 claim Action。随后：
+外部模式下该命令返回并自动 claim Action。无论哪种模式，随后都必须由真实 Agent：
 
 1. 运行 `actions running`；
 2. 读取 Action 中的源文件、用户原话和可选 selection；
@@ -128,7 +127,7 @@ ggtree-air actions wait \
 5. 发布候选 preview；
 6. 实际检查图片；
 7. 根据用户要求提交一个或多个真实文件；
-8. 再次进入 `actions wait`。
+8. external 模式再次进入 `actions wait`；managed 模式由服务等待下一次节点指令。
 
 不要调用程序内的旧自然语言 Planner 代替 Agent 判断。
 
@@ -162,7 +161,7 @@ ggtree-air artifacts commit <id> \
 
 ```bash
 ggtree-air actions fail <id> \
-  --workspace <workspace> \
+  --workspace <workspace> --agent <name> \
   --message "<诚实、可理解的原因>"
 ```
 
@@ -171,7 +170,7 @@ ggtree-air actions fail <id> \
 - Runtime 与 R 环境通过检查；
 - canonical Skill 已加载；
 - 首个工作区和画布已经打开；
-- Agent 正在 `actions wait`，而不是结束回合；
+- managed Agent 可用，或 external Agent 正在 `actions wait`；
 - 用户不需要手动执行任何安装或运行命令；
 - 每个 Action 的执行过程会在画布里流式显示；
 - 只提交真实变化的产物。

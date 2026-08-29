@@ -93,7 +93,7 @@ Non-loopback binding is enabled only inside the published container via the
 explicit `GGTREE_AIR_ALLOW_NON_LOOPBACK=1` image environment. Mutation-token
 protection remains active.
 
-`docker compose up --build` serves `results/demo` when that workspace already
+`docker compose up --build` serves `results/workspace` when that workspace already
 exists on the host.
 
 ## 4. GitHub Releases and GHCR

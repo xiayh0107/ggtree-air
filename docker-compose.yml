@@ -13,7 +13,7 @@ services:
     command:
       - serve
       - --workspace
-      - /workspace/results/demo
+      - /workspace/results/workspace
       - --host
       - 0.0.0.0
       - --port

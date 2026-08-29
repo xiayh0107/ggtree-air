@@ -44,7 +44,8 @@ export async function artifactRecord(target, root, role = 'artifact') {
     ['.html', 'text/html; charset=utf-8'], ['.json', 'application/json; charset=utf-8'],
     ['.png', 'image/png'], ['.pdf', 'application/pdf'], ['.svg', 'image/svg+xml'], ['.rds', 'application/octet-stream'],
     ['.txt', 'text/plain; charset=utf-8'], ['.tsv', 'text/tab-separated-values; charset=utf-8'],
-    ['.nwk', 'text/x-newick; charset=utf-8'],
+    ['.csv', 'text/csv; charset=utf-8'], ['.r', 'text/x-r-source; charset=utf-8'],
+    ['.nwk', 'text/x-newick; charset=utf-8'], ['.newick', 'text/x-newick; charset=utf-8'],
   ])
   return {
     path: path.relative(root, target).split(path.sep).join('/'),

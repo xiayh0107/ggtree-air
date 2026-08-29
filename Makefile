@@ -1,17 +1,17 @@
-.PHONY: help check demo rich-demo hmp-demo hpv-demo serve serve-rich serve-hmp serve-hpv test clean
+.PHONY: help check fixture rich-fixture hmp-fixture hpv-fixture serve serve-rich serve-hmp serve-hpv test clean
 
 NODE ?= node
 CLI := $(NODE) backend/bin/ggtree-air.mjs
-OUT ?= results/demo
+OUT ?= results/fixture
 
 help:
 	@printf '%s\n' \
 	  'ggtree-air targets:' \
 	  '  make check        verify Node orchestrator and isolated R renderer' \
-	  '  make demo         build a small smoke-test workspace' \
-	  '  make rich-demo    fetch and build the treedata-book Candida case' \
-	  '  make hmp-demo     build the 334-tip HMP body-site workflow' \
-	  '  make hpv-demo     build the 90-genome HPV58 lineage workflow' \
+	  '  make fixture      build a small renderer test workspace' \
+	  '  make rich-fixture fetch and build the treedata-book Candida fixture' \
+	  '  make hmp-fixture  build the 334-tip HMP renderer fixture' \
+	  '  make hpv-fixture  build the 90-genome HPV58 renderer fixture' \
 	  '  make serve        open the annotation → rerender backend loop' \
 	  '  make test         run Node backend and R renderer tests' \
 	  '  make clean        remove generated results'
@@ -19,7 +19,7 @@ help:
 check:
 	$(CLI) check
 
-demo:
+fixture:
 	$(CLI) run \
 	  --dist renderer/r/fixtures/easy_input.dist.tsv \
 	  --groups renderer/r/fixtures/group_table.tsv \
@@ -27,11 +27,11 @@ demo:
 	  --intent treescale,tipcolor \
 	  --format png \
 	  --dpi 120 \
-	  --title 'ggtree-air demo' \
+	  --title 'ggtree-air renderer fixture' \
 	  --out $(OUT) \
 	  --force
 
-rich-demo:
+rich-fixture:
 	$(NODE) examples/treedata-book/fetch.mjs candida-auris
 	$(CLI) run \
 	  --tree examples/treedata-book/data/candida-auris-tree.nwk \
@@ -45,7 +45,7 @@ rich-demo:
 	  --subtitle 'treedata-book chapter 10 · 305 tips / 304 metadata rows' \
 	  --out results/candida-auris --force
 
-hmp-demo:
+hmp-fixture:
 	$(NODE) examples/treedata-book/fetch.mjs hmp-microbiome
 	$(NODE) examples/treedata-book/prepare-hmp.mjs
 	$(CLI) run \
@@ -60,7 +60,7 @@ hmp-demo:
 	  --subtitle 'treedata-book chapter 10 · 334 tips / 7 body-site tracks' \
 	  --out results/hmp-microbiome --force
 
-hpv-demo:
+hpv-fixture:
 	$(NODE) examples/treedata-book/fetch.mjs hpv58
 	$(NODE) examples/treedata-book/prepare-hpv58.mjs
 	$(CLI) run \

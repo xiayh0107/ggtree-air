@@ -6,7 +6,7 @@ data. SHA-256 is checked before use.
 
 ```bash
 node examples/treedata-book/fetch.mjs candida-auris
-make rich-demo
+make rich-fixture
 ```
 
 Sources:
@@ -17,12 +17,12 @@ Sources:
 The default rich workflow reproduces the structure of the chapter 10
 *Candida auris* case: 304 isolates, clade grouping, and five aligned metadata
 tracks (`FCZ`, `AMB`, `MCF`, `ERG11`, `FKS1`). It is an executable integration
-fixture, not a claim that the compact demo replaces the full book figure.
+fixture, not a user-facing Demo and not a claim that this compact render replaces the full book figure.
 
 The HMP case is also executable:
 
 ```bash
-make hmp-demo
+make hmp-fixture
 make serve-hmp
 ```
 
@@ -34,7 +34,7 @@ logged `--repair-tip-labels` normalization.
 The HPV58 lineage and sequence-distance workflow is executable as well:
 
 ```bash
-make hpv-demo
+make hpv-fixture
 make serve-hpv
 ```
 

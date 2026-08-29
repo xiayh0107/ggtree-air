@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { chromium } from 'playwright'
@@ -22,19 +22,19 @@ test('canvas report exposes semantic nodes and persists feedback', { timeout: 18
       title: 'canvas test',
     })
     await createWorkspace({ root, spec })
-    service = await startWorkspaceServer({ root, port: 0, onLog: () => undefined })
+    service = await startWorkspaceServer({ root, port: 0, agentAdapter: 'none', onLog: () => undefined })
     browser = await chromium.launch({ headless: true })
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } })
     const pageErrors = []
     page.on('pageerror', (error) => pageErrors.push(error.message))
     await page.goto(service.url, { waitUntil: 'networkidle' })
     assert.equal(await page.locator('.canvas-node').count(), 2)
-    assert.equal(await page.locator('#connection-status').textContent(), '后端已连接')
+    await page.waitForFunction(() => document.querySelector('#connection-status')?.textContent === 'Agent 未连接')
+    assert.equal(await page.locator('#connection-status').textContent(), 'Agent 未连接')
 
     await page.locator('[data-tool="workspaces"]').click()
-    await page.locator('.demo-card').first().waitFor({ timeout: 15_000 })
-    assert.equal(await page.locator('.demo-card').count(), 1)
-    assert.match(await page.locator('.demo-card').first().textContent(), /exact-reproduction.*身体部位/s)
+    assert.match(await page.locator('.workspace-panel').textContent(), /真实输入与 Agent 产物|尚未导入输入资源/)
+    assert.equal(await page.locator('.demo-card').count(), 0)
     await page.locator('[data-close]').click()
 
     await page.locator('[data-node-id="view-r1-rectangular"] [data-edit-node]').click()
@@ -108,10 +108,15 @@ test('canvas report exposes semantic nodes and persists feedback', { timeout: 18
       return node?.textContent.includes('正在检查标签')
     }, actionId, { timeout: 15_000 })
     assert.equal(await page.locator(`[data-node-id="agent-action-${actionId}"] .agent-preview`).count(), 1)
-    await fetch(`${service.url}/api/actions/${actionId}/complete`,  {
+    const outputA = path.join(parent, 'output-a.txt')
+    const outputB = path.join(parent, 'output-b.txt')
+    await writeFile(outputA, 'real output A\n')
+    await writeFile(outputB, 'real output B\n')
+    const completeResponse = await fetch(`${service.url}/api/actions/${actionId}/complete`,  {
       method: 'POST', headers: mutationHeaders,
-      body: JSON.stringify({ agent_id: 'ui-test-agent', files: [sourceImage, sourceImage] }),
+      body: JSON.stringify({ agent_id: 'ui-test-agent', files: [outputA, outputB] }),
     })
+    assert.equal(completeResponse.status, 200)
     await page.waitForFunction(() => document.querySelectorAll('[data-node-id^="agent-artifact-"]').length === 2,
       null, { timeout: 30_000 })
     assert.equal(await page.locator('[data-node-id^="agent-artifact-"]').count(), 2)

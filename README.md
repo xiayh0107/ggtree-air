@@ -33,13 +33,13 @@ Pi 也可以显式触发：
 ggtree-air 是一个让人和 Agent 围绕科研图片协作的节点画布。
 
 ```text
-原始产物
+真实参考图 + 用户树与 metadata
    ↓
-“配色太抢眼，缩小右侧色块”
+“请按参考图的视觉结构完成这张图”
    ↓
-Agent 读取 Skill、数据、原图和选区
+平台启动真实 Agent CLI；Agent 读取 Skill、输入和选区并调用工具
    ↓
-新产物
+经过提交校验的新产物
 ```
 
 画布上只有两类内容：
@@ -47,11 +47,11 @@ Agent 读取 Skill、数据、原图和选区
 - **Artifact**：真实图片或文件；
 - **Action**：用户的原话和可选视觉选区。
 
-程序本身不内置模型，也不假装理解绘图需求。任何外部 Agent 都可以加载包内的标准 Skill，处理同一套 Action/Artifact 协议。
+程序本身不内置模型，也不假装理解绘图需求。它可以启动用户机器上已经安装并登录的 Agent CLI；任何其他 Agent 也可以加载同一 Skill，处理同一套 Action/Artifact 协议。
 
 ## 用户如何使用
 
-### 1. 让 Agent 创建第一版
+### 1. 让 Agent 建立真实输入画布
 
 你只需要描述目标：
 
@@ -62,14 +62,14 @@ Agent 读取 Skill、数据、原图和选区
 Agent 会负责：
 
 - 找到 Newick/NEXUS/PhyloXML、距离矩阵或 FASTA；
-- 识别匹配的 metadata；
-- 调用 R/ggtree 生成第一版；
-- 打开浏览器节点画布；
-- 保持连接，等待你的下一条 Action。
+- 识别匹配的 metadata 和参考图；
+- 创建空白任务画布并逐个导入这些真实输入；
+- 打开浏览器，但不会提前生成无关布局或完成历史；
+- 你在节点旁提交目标后，平台才启动真实 Agent Run。
 
 ### 2. 在产物旁直接说怎么改
 
-点击产物节点的“修改”，输入一句话：
+点击输入或产物节点的“Agent 任务”，选择要交给 Agent 的上下文资源，再输入一句话：
 
 ```text
 配色柔和一点。
@@ -78,7 +78,7 @@ Agent 会负责：
 把这个 clade 突出，但不要遮住 support。
 ```
 
-发送后会创建一个 Action 节点。正在等待的 Agent 会自动收到它。
+发送后会创建一个 Action 节点，并启动真实 Agent CLI。只有 Agent 通过协议提交了实际文件，画布才会出现下游 Artifact。
 
 ### 3. 需要时再标注
 
@@ -140,7 +140,7 @@ Action 节点会原地显示：
 已提交 2 个产物              100%
 ```
 
-如果没有 Agent 正在连接，Action 会诚实显示“等待 Agent”，不会生成假的结果。
+节点提交后，后端会启动真实的本机 Agent CLI；若 Agent 不可用，Action 会诚实停在“等待 Agent”，不会生成假的结果。设置 `GGTREE_AIR_AGENT=none` 可关闭托管启动，改由任意外部 Agent 使用 `actions wait` 接单。
 
 ---
 
@@ -163,23 +163,20 @@ Skill 使用普通文件和 CLI 协议，不绑定特定模型厂商或 Agent SD
 
 ---
 
-## 经视觉验收的论文 Demo
+## 从真实输入开始，而不是运行伪造 Demo
 
-内置画廊只展示达到质量门槛的 Demo，不再把普通 Recipe 包装成论文复现。每个 Demo 必须包含：目标 Figure、用户数据、用户原话、Agent 产物、可复现脚本和明确的 benchmark 类型。
+平台不再内置预先完成的 Demo 历史。Agent 或用户只负责创建空白任务画布、导入真实输入，然后由节点上的提示词启动真实 Agent Run：
 
-当前发布：
-
-- **HMP 身体部位丰度（exact reproduction）** — 334 tips、phylum 编码、病原体/共生菌形状、23 个 clade 分区、七层身体部位 heatmap、外圈 abundance bars；输出为人工检查过的 4200 × 4200 PNG。
-
-其余物种性状、Candida、Typhi 和 HPV58 场景仍是草稿，不会出现在内置画廊，直到逐图完成视觉验收。
-
-论文、数据、代码与版权来源见 [`docs/REAL_WORLD_DEMOS.md`](docs/REAL_WORLD_DEMOS.md)。
-
-你也可以直接对 Agent 说：
-
-```text
-用 hmp-microbiome 案例创建工作流并打开给我看，然后继续等待我的修改。
+```bash
+ggtree-air workspace create --out results/my-task --title "复现并迁移这张系统发育图"
+ggtree-air artifacts import --workspace results/my-task \
+  --file reference.png --role reference
+ggtree-air artifacts import --workspace results/my-task \
+  --file tree.nwk --file metadata.csv --role user-input
+ggtree-air open --workspace results/my-task
 ```
+
+画布最初只显示这些真实输入，不生成多余的 rectangular/fan 结果。用户在节点旁输入要求并勾选上下文资源后，平台才创建 Action、启动本机 Agent CLI、记录真实工具调用，并在 Agent 提交经过校验的文件后创建输出节点。运行边界与防造假约束见 [`docs/AGENT_RUNTIME.md`](docs/AGENT_RUNTIME.md)。
 
 ---
 
@@ -248,7 +245,7 @@ ggtree-air artifacts commit <id> \
 
 ```bash
 ggtree-air actions fail <id> \
-  --workspace results/tree \
+  --workspace results/tree --agent my-agent \
   --message "无法从现有数据支持该修改"
 ```
 

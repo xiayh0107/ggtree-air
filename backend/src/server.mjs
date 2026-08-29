@@ -2,15 +2,15 @@ import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { createServer } from 'node:http'
 import { readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
-import { createWorkspaceBranch, listWorkspaceBranches, loadWorkspace, mergeWorkspaceBranch, readWorkspaceAnnotations, refreshWorkspacePresentation, rerunWorkspace, saveNaturalLanguagePlan, saveWorkspaceAnnotations, saveWorkspacePlan, switchWorkspaceBranch, workspaceSummary } from './workspace.mjs'
+import { createWorkspaceBranch, listWorkspaceBranches, loadWorkspace, mergeWorkspaceBranch, readWorkspaceAnnotations, refreshWorkspacePresentation, rerunWorkspace, saveWorkspaceAnnotations, saveWorkspacePlan, switchWorkspaceBranch, workspaceSummary } from './workspace.mjs'
 import { pathExists, readJson, safeWorkspacePath } from './paths.mjs'
 import { JobManager } from './jobs.mjs'
+import { LocalAgentRunner, readAgentRunActivity } from './agent-runner.mjs'
 import { evaluateScenePredicate, pageSceneObjects } from './scene-query.mjs'
 import {
   claimAction, commitActionArtifacts, createAction, failAction, getAction,
-  listActions, markActionRunning, updateActionProgress,
+  interruptStaleManagedActions, listActions, markActionRunning, updateActionProgress,
 } from './actions.mjs'
-import { listPaperDemos, openPaperDemo } from './demos.mjs'
 
 const MAX_BODY_BYTES = 1024 * 1024
 
@@ -76,16 +76,27 @@ async function serveFile(response, target, token, injectToken = false) {
   response.end(content)
 }
 
-export async function startWorkspaceServer({ root, host = '127.0.0.1', port = 0, onLog = console.error }) {
+export async function startWorkspaceServer({
+  root, host = '127.0.0.1', port = 0, onLog = console.error,
+  agentAdapter = process.env.GGTREE_AIR_AGENT || 'auto',
+  agentCommand = process.env.GGTREE_AIR_PI_COMMAND || 'pi',
+}) {
   const allowContainerBind = process.env.GGTREE_AIR_ALLOW_NON_LOOPBACK === '1'
   if (host !== '127.0.0.1' && !(allowContainerBind && host === '0.0.0.0')) {
     throw new Error('The workspace server must bind to 127.0.0.1 (container images may explicitly allow 0.0.0.0)')
   }
   root = path.resolve(root)
   await loadWorkspace(root)
+  await interruptStaleManagedActions(root)
   await refreshWorkspacePresentation(root)
   const token = randomBytes(24).toString('base64url')
   const jobs = new JobManager()
+  const agentRunner = new LocalAgentRunner({
+    root, onLog,
+    adapter: agentAdapter,
+    piCommand: agentCommand,
+    onRefresh: () => refreshWorkspacePresentation(root),
+  })
   let rerunActive = false
   const server = createServer(async (request, response) => {
     try {
@@ -98,19 +109,9 @@ export async function startWorkspaceServer({ root, host = '127.0.0.1', port = 0,
         jsonResponse(response, 200, await workspaceSummary(root))
         return
       }
-      if (request.method === 'GET' && url.pathname === '/api/demos') {
-        jsonResponse(response, 200, { demos: await listPaperDemos() })
-        return
-      }
-      const demoOpenMatch = url.pathname.match(/^\/api\/demos\/([^/]+)\/open$/)
-      if (request.method === 'POST' && demoOpenMatch) {
-        requireMutationToken(request, token)
-        const body = await readJsonBody(request)
-        const result = await openPaperDemo(demoOpenMatch[1], {
-          force: Boolean(body.force), browser: false, onLog,
-        })
+      if (request.method === 'GET' && url.pathname === '/api/agents') {
         jsonResponse(response, 200, {
-          id: result.demo.id, root: result.root, url: result.service.url,
+          agents: [{ ...(await agentRunner.inspect()), active_actions: agentRunner.activeActionIds() }],
         })
         return
       }
@@ -172,6 +173,12 @@ export async function startWorkspaceServer({ root, host = '127.0.0.1', port = 0,
         })
         return
       }
+      const actionLogMatch = url.pathname.match(/^\/api\/actions\/([^/]+)\/log$/)
+      if (request.method === 'GET' && actionLogMatch) {
+        await getAction(root, actionLogMatch[1])
+        jsonResponse(response, 200, { activity: await readAgentRunActivity(root, actionLogMatch[1]) })
+        return
+      }
       const actionMatch = url.pathname.match(/^\/api\/actions\/([^/]+)(?:\/(claim|running|progress|preview|complete|fail))?$/)
       if (request.method === 'GET' && actionMatch && !actionMatch[2]) {
         jsonResponse(response, 200, await getAction(root, actionMatch[1]))
@@ -192,6 +199,7 @@ export async function startWorkspaceServer({ root, host = '127.0.0.1', port = 0,
         const action = await createAction(root, await readJsonBody(request))
         await refreshWorkspacePresentation(root)
         jsonResponse(response, 201, action)
+        setImmediate(() => { void agentRunner.start(action.id) })
         return
       }
       if (request.method === 'POST' && actionMatch?.[2] && actionMatch[2] !== 'preview') {
@@ -208,22 +216,13 @@ export async function startWorkspaceServer({ root, host = '127.0.0.1', port = 0,
               })
             : actionMatch[2] === 'complete'
               ? await commitActionArtifacts(root, actionMatch[1], body.files, { agentId: body.agent_id })
-              : await failAction(root, actionMatch[1], body.message)
+              : await failAction(root, actionMatch[1], body.message, { agentId: body.agent_id })
         await refreshWorkspacePresentation(root)
         jsonResponse(response, 200, action)
         return
       }
       if (request.method === 'GET' && url.pathname === '/api/annotations') {
         jsonResponse(response, 200, await readWorkspaceAnnotations(root))
-        return
-      }
-      if (request.method === 'POST' && url.pathname === '/api/plan/natural') {
-        requireMutationToken(request, token)
-        if (rerunActive) throw Object.assign(new Error('A workflow job is active'), { statusCode: 409 })
-        const body = await readJsonBody(request)
-        jsonResponse(response, 200, await saveNaturalLanguagePlan(root, body.prompt, {
-          source_view_id: body.source_view_id,
-        }))
         return
       }
       if (request.method === 'PUT' && url.pathname === '/api/plan') {
@@ -343,6 +342,7 @@ export async function startWorkspaceServer({ root, host = '127.0.0.1', port = 0,
       } else response.destroy()
     }
   })
+  server.on('close', () => agentRunner.stopAll())
   await new Promise((resolve, reject) => {
     server.once('error', reject)
     server.listen(port, host, resolve)

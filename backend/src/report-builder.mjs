@@ -21,6 +21,7 @@ async function imageVariant(outputDir, filename) {
 }
 
 function caveats(runMetadata) {
+  if (runMetadata.input?.route === 'artifact-canvas') return []
   const warnings = runMetadata.scientific_context?.warnings ?? []
   return [...new Set([
     runMetadata.scientific_context?.rooted
@@ -131,6 +132,7 @@ export async function buildReport({
     schema_version: '1.1.0',
     workspace: {
       id: workspace.id,
+      kind: workspace.kind || 'phylogeny-render',
       title: workspace.spec.title,
       subtitle: workspace.spec.subtitle,
       revision: workspace.revision,

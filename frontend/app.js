@@ -234,10 +234,10 @@
       type: 'external-artifact',
       title: artifact.label,
       artifact,
-      x: 80,
-      y: viewStartY + index * 360,
+      x: 80 + (index % 3) * 480,
+      y: viewStartY + Math.floor(index / 3) * 360,
       w: 430,
-      h: 330,
+      h: artifact.data_uri ? 330 : 170,
       current: true,
     }))
     const protocolNodes = []
@@ -286,7 +286,7 @@
           x: actionNode.x + actionNode.w + 250,
           y: actionNode.y + index * 360 - ((action.outputs.length - 1) * 180),
           w: 430,
-          h: 330,
+          h: artifact.data_uri ? 330 : 170,
           current: true,
         }
         protocolNodes.push(artifactNode)
@@ -481,7 +481,7 @@
         </header>
         <div class="node-actions"><button class="icon-button" type="button" data-open-node title="打开">${icon('open')}</button></div>
         <div class="node-body ${node.type === 'tree' || node.type === 'external-artifact' ? 'no-inset' : ''}">${nodeBody(node)}</div>
-        <footer class="node-footer"><span class="${node.type.startsWith('draft-') || node.type === 'protocol-action' && node.action.status !== 'completed' ? '' : 'success'}">${node.type === 'protocol-action' && node.action.status === 'running' ? '◌' : node.type.startsWith('draft-') || node.type === 'protocol-action' && node.action.status !== 'completed' ? '○' : '✓'}</span><span>${escapeHtml(footerStatus(node))}</span>${node.type === 'tree' || node.type === 'external-artifact' ? `<button type="button" data-edit-node>＋ 修改</button>` : ''}</footer>`
+        <footer class="node-footer"><span class="${node.type.startsWith('draft-') || node.type === 'protocol-action' && node.action.status !== 'completed' ? '' : 'success'}">${node.type === 'protocol-action' && node.action.status === 'running' ? '◌' : node.type.startsWith('draft-') || node.type === 'protocol-action' && node.action.status !== 'completed' ? '○' : '✓'}</span><span>${escapeHtml(footerStatus(node))}</span>${node.type === 'protocol-action' ? '<button type="button" data-open-run>查看过程</button>' : node.type === 'tree' || node.type === 'external-artifact' ? `<button type="button" data-edit-node>＋ Agent 任务</button>` : ''}</footer>`
       article.addEventListener('pointerdown', (event) => {
         if (event.target.closest('button')) return
         selectedNodeId = node.id
@@ -491,6 +491,10 @@
         event.stopPropagation()
         openNode(node)
       }))
+      article.querySelector('[data-open-run]')?.addEventListener('click', (event) => {
+        event.stopPropagation()
+        void openActionRunDrawer(node)
+      })
       article.querySelectorAll('[data-edit-node]').forEach((button) => button.addEventListener('click', (event) => {
         event.stopPropagation()
         if (node.type === 'external-artifact' || node.current) openNodeComposer(node)
@@ -520,7 +524,10 @@
       : composerSelection?.selector?.kind === 'clade' ? `clade ${composerSelection.selector.node}`
         : composerSelection?.selector?.kind === 'region' ? '框选区域'
           : composerSelection?.selector?.kind === 'stroke' ? '自由涂鸦' : null
-    composer.innerHTML = `<div class="node-composer-head"><strong>修改 ${escapeHtml(node.layout || node.artifact?.label || '产物')}</strong><button type="button" data-composer-close>×</button></div>${selectionLabel ? `<button type="button" class="selection-chip" data-composer-clear-selection>${escapeHtml(selectionLabel)} ×</button>` : ''}<div class="node-composer-row">${node.type === 'tree' ? `<button type="button" class="composer-annotate" data-composer-annotate title="在图上选择区域">${icon('brush')}</button>` : ''}<textarea rows="2" placeholder="描述想怎么改…" id="node-composer-input"></textarea><button type="button" class="composer-send" data-composer-send aria-label="发送">↑</button></div>`
+    const contextChoices = workspaceArtifacts.length > 1
+      ? `<div class="composer-context" aria-label="Agent 输入资源">${workspaceArtifacts.map((artifact) => `<label><input type="checkbox" data-composer-source="${escapeHtml(artifact.id)}" checked><span>${escapeHtml(artifact.label)}</span></label>`).join('')}</div>`
+      : ''
+    composer.innerHTML = `<div class="node-composer-head"><strong>基于 ${escapeHtml(node.layout || node.artifact?.label || '产物')} 创建任务</strong><button type="button" data-composer-close>×</button></div>${selectionLabel ? `<button type="button" class="selection-chip" data-composer-clear-selection>${escapeHtml(selectionLabel)} ×</button>` : ''}${contextChoices}<div class="node-composer-row">${node.type === 'tree' ? `<button type="button" class="composer-annotate" data-composer-annotate title="在图上选择区域">${icon('brush')}</button>` : ''}<textarea rows="2" placeholder="告诉 Agent 要完成的具体任务…" id="node-composer-input"></textarea><button type="button" class="composer-send" data-composer-send aria-label="发送">↑</button></div>`
     composer.querySelector('[data-composer-close]').addEventListener('click', () => {
       composerNodeId = null; composerSelection = null; renderNodeComposer()
     })
@@ -576,10 +583,16 @@
           ? { kind: 'action-artifact', artifact_id: node.artifact.id }
           : { kind: 'workspace-artifact', artifact_id: node.artifact.id }
         : { kind: 'revision-view', revision: node.revision, layout: node.layout }
+      const selectedWorkspaceSources = [...document.querySelectorAll('[data-composer-source]:checked')]
+        .map((checkbox) => ({ kind: 'workspace-artifact', artifact_id: checkbox.dataset.composerSource }))
+      const sources = [source, ...selectedWorkspaceSources]
+        .filter((candidate, index, values) => values.findIndex((value) =>
+          value.kind === candidate.kind && value.artifact_id === candidate.artifact_id
+          && value.revision === candidate.revision && value.layout === candidate.layout) === index)
       const action = await apiFetch('/api/actions', {
         method: 'POST',
         body: JSON.stringify({
-          source,
+          sources,
           instruction: prompt,
           selection: composerSelection?.selector?.kind === 'view'
             ? null : composerSelection?.selector || null,
@@ -591,7 +604,7 @@
       rebuildGraph()
       renderNodes()
       focusPendingActions()
-      showToast('已提交修改，等待 Agent 处理')
+      showToast('已创建任务，正在启动真实 Agent')
     } catch (error) {
       showToast(`修改失败：${error.message}`)
       send.disabled = false
@@ -653,6 +666,7 @@
   }
 
   function fitNodes(nodes = graph.nodes) {
+    if (!nodes.length) { applyCamera(); return }
     const padding = 110
     const left = Math.min(...nodes.map((node) => node.x))
     const top = Math.min(...nodes.map((node) => node.y))
@@ -673,6 +687,8 @@
     else if (node.type === 'revision-feedback') openRevisionFeedbackDrawer(node)
     else if (node.type === 'draft-feedback' || node.type === 'draft-plan') openFeedbackDrawer()
     else if (node.type === 'science') openScienceDrawer()
+    else if (node.type === 'protocol-action') void openActionRunDrawer(node)
+    else if (node.type === 'external-artifact' && node.artifact.data_uri) openExternalArtifact(node)
     else openInfoDrawer(node)
   }
 
@@ -961,16 +977,18 @@
       button.disabled = true
       button.textContent = '正在解析动作…'
       try {
-        pendingPlan = await apiFetch('/api/plan/natural', {
+        const action = await apiFetch('/api/actions', {
           method: 'POST', body: JSON.stringify({
-            prompt: instruction,
-            source_view_id: sceneView(currentLayout, payload.workspace.revision)?.id,
+            sources: [{ kind: 'revision-view', revision: payload.workspace.revision, layout: currentLayout }],
+            instruction,
           }),
         })
+        protocolActions.push(action)
         drawer.querySelector('#instruction-input').value = ''
-        updateFeedbackCount()
+        rebuildGraph()
+        renderNodes()
         focusPendingActions()
-        showToast('工作流动作节点已创建')
+        showToast('已创建任务，正在启动真实 Agent')
       } catch (error) {
         showToast(`无法解析整图修改：${error.message}。可点击具体 tip/clade 后重试。`)
       } finally {
@@ -1095,6 +1113,24 @@
     importInput.value = ''
   })
 
+  async function openActionRunDrawer(node) {
+    const action = node.action
+    drawer.dataset.actionId = action.id
+    drawer.innerHTML = `<div class="drawer-header"><div class="node-icon">${icon('feedback')}</div><div class="drawer-heading"><h2>Agent 运行过程</h2><p>${escapeHtml(action.claim?.agent_id || '等待 Agent')} · ${escapeHtml(action.status)}</p></div><div class="drawer-header-actions"><button class="icon-button" data-close>${icon('close')}</button></div></div><div class="info-drawer"><section class="info-section"><h3>用户要求</h3><p>${escapeHtml(action.instruction)}</p></section><section class="info-section"><h3>真实运行记录</h3><div id="agent-run-activity"><p>正在读取 Agent 日志…</p></div></section></div>`
+    drawer.querySelector('[data-close]').addEventListener('click', closeDrawer)
+    openDrawer()
+    try {
+      const response = await apiFetch(`/api/actions/${action.id}/log`)
+      if (drawer.dataset.actionId !== action.id) return
+      const activity = response.activity || []
+      drawer.querySelector('#agent-run-activity').innerHTML = activity.length
+        ? `<div class="agent-run-log">${activity.map((entry) => `<article class="agent-log-entry ${escapeHtml(entry.kind)}"><strong>${escapeHtml(entry.kind === 'tool-call' ? `调用 ${entry.name}` : entry.kind === 'tool-result' ? `${entry.name} 返回` : '警告')}</strong>${entry.input ? `<pre>${escapeHtml(JSON.stringify(entry.input, null, 2))}</pre>` : ''}${entry.text ? `<pre>${escapeHtml(entry.text)}</pre>` : ''}</article>`).join('')}</div>`
+        : '<p>这个 Action 尚无 Agent 工具调用记录。</p>'
+    } catch (error) {
+      if (drawer.dataset.actionId === action.id) drawer.querySelector('#agent-run-activity').innerHTML = `<p>日志读取失败：${escapeHtml(error.message)}</p>`
+    }
+  }
+
   function openRevisionFeedbackDrawer(node) {
     const items = node.feedbackItems || []
     const operations = node.planOperations || []
@@ -1116,35 +1152,13 @@
     return job
   }
 
-  async function openWorkspacePanel() {
-    drawer.innerHTML = `<div class="drawer-header"><div class="node-icon">${icon('folder')}</div><div class="drawer-heading"><h2>工作空间</h2><p>当前工作与经视觉验收的 Demo</p></div><div class="drawer-header-actions"><button class="icon-button" data-close>${icon('close')}</button></div></div><div class="workspace-panel"><section><h3>当前工作空间</h3><div class="workspace-current"><strong>${escapeHtml(payload.workspace.title)}</strong><span>${scene.tree.tips} tips · ${scene.views.length} layouts · ${protocolActions.length} 次人机交互</span></div></section><section><div class="workspace-section-head"><h3>已验收 Demo</h3><a href="https://github.com/xiayh0107/ggtree-air/blob/main/docs/REAL_WORLD_DEMOS.md" target="_blank" rel="noreferrer">来源说明</a></div><div class="demo-grid" id="demo-grid"><p class="workspace-loading">正在读取 Demo…</p></div></section></div>`
+  function openWorkspacePanel() {
+    const inputs = workspaceArtifacts.length
+      ? workspaceArtifacts.map((artifact) => `<div class="branch-row"><div><strong>${escapeHtml(artifact.label)}</strong><small>${escapeHtml(artifact.role || 'input')} · ${escapeHtml(artifact.media_type)}</small></div></div>`).join('')
+      : '<p class="workspace-loading">尚未导入输入资源。</p>'
+    drawer.innerHTML = `<div class="drawer-header"><div class="node-icon">${icon('folder')}</div><div class="drawer-heading"><h2>工作空间</h2><p>真实输入与 Agent 产物</p></div><div class="drawer-header-actions"><button class="icon-button" data-close>${icon('close')}</button></div></div><div class="workspace-panel"><section><h3>当前任务</h3><div class="workspace-current"><strong>${escapeHtml(payload.workspace.title)}</strong><span>${workspaceArtifacts.length} 个输入 · ${protocolActions.length} 次真实 Agent 运行</span></div></section><section><div class="workspace-section-head"><h3>输入资源</h3></div><div class="branch-list">${inputs}</div></section><section class="info-section"><p>平台不会预生成 Demo 或伪造完成历史。节点上提交的要求会创建真实 Action，并由已连接的外部 Agent 执行。</p></section></div>`
     drawer.querySelector('[data-close]').addEventListener('click', closeDrawer)
     openDrawer()
-    const grid = drawer.querySelector('#demo-grid')
-    if (!liveApi) {
-      grid.innerHTML = '<p class="workspace-loading">离线报告无法创建 Demo，请通过本地服务打开。</p>'
-      return
-    }
-    try {
-      const response = await apiFetch('/api/demos')
-      grid.innerHTML = response.demos.map((demo) => `<article class="demo-card"><div class="demo-card-top"><span>${escapeHtml(demo.domain)}</span><em>${escapeHtml(demo.benchmark || '已验收')}</em></div><h4>${escapeHtml(demo.title)}</h4><p class="demo-paper">${escapeHtml(demo.paper.authors)} · ${escapeHtml(demo.paper.journal)} ${demo.paper.year}</p><p>${escapeHtml(demo.story)}</p><div class="demo-card-actions"><a href="https://doi.org/${encodeURIComponent(demo.paper.doi)}" target="_blank" rel="noreferrer">论文 DOI</a><button type="button" class="secondary-button" data-open-demo="${escapeHtml(demo.id)}">${demo.installed ? '打开工作空间' : '创建并打开'}</button></div></article>`).join('')
-      grid.querySelectorAll('[data-open-demo]').forEach((button) => button.addEventListener('click', async () => {
-        button.disabled = true
-        button.textContent = '正在准备…'
-        try {
-          const result = await apiFetch(`/api/demos/${button.dataset.openDemo}/open`, {
-            method: 'POST', body: '{}',
-          })
-          location.href = result.url
-        } catch (error) {
-          showToast(`Demo 打开失败：${error.message}`)
-          button.disabled = false
-          button.textContent = '重试'
-        }
-      }))
-    } catch (error) {
-      grid.innerHTML = `<p class="workspace-loading">无法读取 Demo：${escapeHtml(error.message)}</p>`
-    }
   }
 
   function openBranchDrawer() {
@@ -1191,34 +1205,12 @@
   function openFeedbackDrawer() {
     drawer.innerHTML = `<div class="drawer-header"><div class="node-icon">${icon('feedback')}</div><div class="drawer-heading"><h2>人类反馈</h2><p>${annotationCount()} 条 · ${escapeHtml(scene.scene_id)}</p></div><div class="drawer-header-actions"><button class="icon-button" data-export>${icon('download')}</button><button class="icon-button" data-import>${icon('upload')}</button><button class="icon-button" data-close>${icon('close')}</button></div></div>
       <div class="info-drawer"><section class="info-section"><h3>闭环状态</h3><p>${liveApi ? '已连接本地后端。反馈会原子写入 annotations.json，并可触发新 revision。' : '当前以离线文件打开。反馈保存在浏览器中，请导出 annotations.json；通过 backend serve 打开可直接回写与重绘。'}</p></section>
-      <section class="info-section"><h3>自然语言绘图计划</h3><div class="natural-plan"><textarea id="natural-plan-input" placeholder="例如：增加圆形布局，隐藏 tip 标签，显示 support，并把刚选中的 clade 命名为耐药分支"></textarea><button type="button" class="primary-button" id="natural-plan-button" ${liveApi ? '' : 'disabled'}>解析为安全计划</button></div><div id="natural-plan-result">${pendingPlan ? `<p>已准备 ${pendingPlan.operations.length} 个操作：${pendingPlan.operations.map((operation) => `<code>${escapeHtml(operation.op)}</code>`).join(' ')}</p>` : ''}</div></section>
       <section class="info-section"><h3>本轮反馈</h3>${annotations.annotations.length ? `<ol>${annotations.annotations.map((item) => `<li><strong>${escapeHtml(item.intent)}</strong> · ${escapeHtml(item.selector.label || item.selector.kind)} — ${escapeHtml(item.instruction)}</li>`).join('')}</ol>` : '<p>尚无反馈。</p>'}</section>
       <section class="info-section"><h3>上一轮应用结果</h3>${feedbackStatusHtml()}</section>
       <div class="feedback-actions"><button class="secondary-button" data-export>导出 JSON</button><button class="secondary-button" data-import>导入 JSON</button></div></div>`
     drawer.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', closeDrawer))
     drawer.querySelectorAll('[data-export]').forEach((button) => button.addEventListener('click', exportAnnotations))
     drawer.querySelectorAll('[data-import]').forEach((button) => button.addEventListener('click', () => importInput.click()))
-    drawer.querySelector('#natural-plan-button')?.addEventListener('click', async () => {
-      const prompt = drawer.querySelector('#natural-plan-input').value.trim()
-      if (!prompt) { showToast('请输入绘图计划'); return }
-      const button = drawer.querySelector('#natural-plan-button')
-      button.disabled = true
-      button.textContent = '解析中…'
-      try {
-        pendingPlan = await apiFetch('/api/plan/natural', {
-          method: 'POST', body: JSON.stringify({ prompt }),
-        })
-        drawer.querySelector('#natural-plan-result').innerHTML = `<p>已生成 ${pendingPlan.operations.length} 个安全操作：${pendingPlan.operations.map((operation) => `<code>${escapeHtml(operation.op)}</code>`).join(' ')}</p>`
-        updateFeedbackCount()
-        focusPendingActions()
-        showToast('自然语言计划动作节点已创建')
-      } catch (error) {
-        showToast(`计划无法解析：${error.message}`)
-      } finally {
-        button.disabled = false
-        button.textContent = '解析为安全计划'
-      }
-    })
     openDrawer()
   }
 
@@ -1250,6 +1242,7 @@
     drawer.classList.remove('open')
     drawer.setAttribute('aria-hidden', 'true')
     backdrop.hidden = true
+    delete drawer.dataset.actionId
     currentLayout = null
     currentRevision = payload.workspace.revision
     setTimeout(() => { if (!drawer.classList.contains('open')) drawer.innerHTML = '' }, 180)
@@ -1358,10 +1351,22 @@
 
   document.getElementById('project-title').textContent = payload.workspace.title
   document.getElementById('project-subtitle').textContent = payload.workspace.subtitle || `revision ${payload.workspace.revision}`
-  document.getElementById('run-summary').innerHTML = `<span class="summary-pill">${scene.tree.tips} tips</span><span class="summary-pill">${scene.views.length} layouts</span><span class="summary-pill">${revisions.length} workflow revisions</span><span class="summary-pill">branch: ${escapeHtml(payload.workspace.current_branch || 'main')}</span><span class="summary-pill">${scene.tree.rooted ? 'rooted' : 'unrooted'}</span>`
+  document.getElementById('run-summary').innerHTML = payload.workspace.kind === 'artifact-canvas'
+    ? `<span class="summary-pill">${workspaceArtifacts.length} inputs</span><span class="summary-pill">${protocolActions.length} Agent runs</span>`
+    : `<span class="summary-pill">${scene.tree.tips} tips</span><span class="summary-pill">${scene.views.length} layouts</span><span class="summary-pill">${revisions.length} workflow revisions</span><span class="summary-pill">branch: ${escapeHtml(payload.workspace.current_branch || 'main')}</span><span class="summary-pill">${scene.tree.rooted ? 'rooted' : 'unrooted'}</span>`
   const connection = document.getElementById('connection-status')
-  connection.textContent = liveApi ? '后端已连接' : '离线报告'
+  connection.textContent = liveApi ? '后端已连接 · 正在检查 Agent' : '离线报告'
   connection.classList.toggle('live', liveApi)
+  if (liveApi) {
+    apiFetch('/api/agents').then((response) => {
+      const available = (response.agents || []).some((agent) => agent.available)
+      connection.textContent = available ? 'Agent 已连接' : 'Agent 未连接'
+      connection.classList.toggle('live', available)
+    }).catch(() => {
+      connection.textContent = 'Agent 状态不可用'
+      connection.classList.remove('live')
+    })
+  }
   updateFeedbackCount()
   renderNodes()
   applyCamera()

@@ -25,7 +25,7 @@ test('annotation API creates a new rendered revision and archives provenance', {
     assert.equal(first.revision, 1)
     assert.equal(await pathExists(path.join(root, 'report.html')), true)
 
-    service = await startWorkspaceServer({ root, port: 0, onLog: () => undefined })
+    service = await startWorkspaceServer({ root, port: 0, agentAdapter: 'none', onLog: () => undefined })
     const report = await (await fetch(service.url)).text()
     assert.match(report, /canvas-stage/)
     assert.doesNotMatch(report, /__GGTREE_AIR_TOKEN_VALUE__/)

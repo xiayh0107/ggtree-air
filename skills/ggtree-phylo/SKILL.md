@@ -29,20 +29,23 @@ source Artifact + user's exact instruction + optional selection
 Never ask the program to interpret natural language. Do not use legacy
 `plan natural` or operation allow-lists for new work.
 
-## Stay attached to the browser workflow
+## Transport modes
 
-After opening the browser, do **not** end the Agent turn and ask the user to
-manually trigger you again. Block waiting for the next browser Action:
+A browser node Action is normally assigned to a real local Agent CLI by the
+workspace service. In that managed mode the Action is already claimed and
+running when this Skill loads; inspect it and execute it directly. Do not claim
+it a second time.
+
+An outer Agent may instead start the service with `GGTREE_AIR_AGENT=none`. In
+that explicit external mode, stay attached by blocking for the next Action:
 
 ```bash
 ggtree-air actions wait --workspace <workspace> \
   --agent <your-agent-name> --timeout 3600
 ```
 
-The command returns as soon as the user submits an instruction and atomically
-claims it for this Agent. This is the Agent-agnostic trigger: any Agent capable
-of running a shell command can stay attached without the program embedding an
-Agent SDK.
+Both modes use an actual Agent process. Neither mode permits the application to
+invent a completed history or copy a packaged output into an Action.
 
 If reconnecting after an interruption, check existing work first:
 
@@ -85,11 +88,9 @@ Resolve every relative artifact path against the workspace root.
    - `region`: normalized image rectangle;
    - `stroke`: normalized user-drawn path.
 3. Interpret the user's outcome in context.
-4. Create an isolated work directory:
-
-```text
-<workspace>/.ggtree-air/agent-work/<action-id>/
-```
+4. Write only inside the run output directory supplied by the managed transport
+   (`<workspace>/.ggtree-air/agent-runs/<action-id>/files/`). In external mode,
+   create an equally isolated directory under `.ggtree-air/agent-runs/`.
 
 5. Stream concise, user-readable progress while working:
 
@@ -140,7 +141,7 @@ If no candidate is visibly different or the request cannot be completed:
 
 ```bash
 ggtree-air actions fail <action-id> \
-  --workspace <workspace> \
+  --workspace <workspace> --agent <your-agent-name> \
   --message "<honest, user-readable reason>"
 ```
 
@@ -152,25 +153,20 @@ When the user has not yet created a workspace, inspect the project for one
 credible tree/distance/FASTA input and matching metadata. Ask only when several
 biologically plausible inputs conflict.
 
-A convenient first pass is:
+Create an artifact-first workspace. Import the user's reference, tree and
+metadata as separate immutable inputs; do not pre-render rectangular/fan outputs
+and do not seed a fake Action:
 
 ```bash
-ggtree-air auto --input <tree-or-fasta> [--metadata <table>] \
-  --out results/<name>
-```
-
-Or use a source-backed recipe for exploration:
-
-```bash
-ggtree-air recipes list
-ggtree-air recipes run <recipe> --out results/<name> --force
-```
-
-Open/reuse the browser without asking for a port:
-
-```bash
+ggtree-air workspace create --out results/<name> --title "<task>"
+ggtree-air artifacts import --workspace results/<name> --file reference.png --role reference
+ggtree-air artifacts import --workspace results/<name> \
+  --file tree.nwk --file metadata.csv --role user-input
 ggtree-air open --workspace results/<name>
 ```
+
+Renderer recipes remain test fixtures only. They are not user-story Demos and
+must not be presented as Agent work.
 
 ## Scientific defaults
 

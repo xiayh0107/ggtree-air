@@ -8,7 +8,6 @@ import {
 import { createAnnotationEnvelope, normalizeAnnotationEnvelope, normalizeRunPlan, normalizeRunSpec } from './contracts.mjs'
 import { callRWorker } from './r-worker.mjs'
 import { buildReport } from './report-builder.mjs'
-import { planNaturalLanguage } from './natural-planner.mjs'
 
 const INTERNAL_DIR = '.ggtree-air'
 const WORKSPACE_FILE = 'workspace.json'
@@ -265,7 +264,7 @@ async function commitRevision(root, workspace, build, previousRevision = null, p
   await atomicWriteJson(path.join(root, WORKSPACE_FILE), workspace)
 }
 
-export async function createWorkspace({ root, spec, force = false, onLog }) {
+async function prepareEmptyRoot(root, force) {
   root = path.resolve(root)
   if (await pathExists(root)) {
     const entries = await readdir(root)
@@ -275,6 +274,49 @@ export async function createWorkspace({ root, spec, force = false, onLog }) {
     }
   }
   await mkdir(root, { recursive: true })
+  return root
+}
+
+export async function createArtifactWorkspace({ root, title = 'Untitled task', subtitle = '', force = false }) {
+  root = await prepareEmptyRoot(root, force)
+  const release = await acquireLock(root)
+  try {
+    const now = isoNow()
+    const spec = { title: String(title), subtitle: String(subtitle), kind: 'artifact-canvas' }
+    const workspace = {
+      schema_version: '1.0.0', id: randomUUID(), kind: 'artifact-canvas',
+      created: now, updated: now, revision: 1, activity_revision: 0, next_revision: 2,
+      current_branch: 'main',
+      branches: { main: { name: 'main', head_revision: 1, created: now, from_revision: 1 } },
+      revisions: { '1': { revision: 1, parents: [], branch: 'main', created: now, spec, effective_feedback: [] } },
+      status: 'ready', spec, input_sources: {},
+    }
+    const scene = {
+      schema_version: '1.0.0', scene_id: randomUUID(), created: now,
+      tree: { input: { path: null, md5: null }, hash: null, tips: 0, internal_nodes: 0, rooted: false },
+      views: [],
+    }
+    const annotations = createAnnotationEnvelope(scene)
+    await Promise.all([
+      atomicWriteJson(path.join(root, WORKSPACE_FILE), workspace),
+      atomicWriteJson(path.join(root, 'scene.json'), scene),
+      atomicWriteJson(path.join(root, 'annotations.json'), annotations),
+      atomicWriteJson(path.join(root, 'feedback_status.json'), { schema_version: '1.0.0', items: [] }),
+      atomicWriteJson(path.join(root, 'run_metadata.json'), {
+        schema_version: '2.0.0', input: { route: 'artifact-canvas', path: null },
+        scientific_context: { rooted: false, warnings: [] }, parameters: {},
+      }),
+    ])
+    await buildReport({ outputDir: root, workspaceRoot: root, workspace, annotations })
+    await buildManifest(root, workspace)
+    return workspace
+  } finally {
+    await release()
+  }
+}
+
+export async function createWorkspace({ root, spec, force = false, onLog }) {
+  root = await prepareEmptyRoot(root, force)
   const release = await acquireLock(root)
   try {
     await cleanupOrphanBuilds(root)
@@ -321,25 +363,6 @@ export async function readWorkspaceAnnotations(root) {
   const scene = await readJson(path.join(root, 'scene.json'))
   const annotations = await readJson(path.join(root, 'annotations.json'))
   return normalizeAnnotationEnvelope(annotations, scene)
-}
-
-export async function saveNaturalLanguagePlan(root, prompt, context = {}) {
-  root = path.resolve(root)
-  const { workspace } = await loadWorkspace(root)
-  const [annotations, scene] = await Promise.all([
-    readWorkspaceAnnotations(root),
-    readJson(path.join(root, 'scene.json')),
-  ])
-  const plan = await planNaturalLanguage({
-    prompt, workspace, annotations, scene, source_view_id: context.source_view_id,
-  })
-  const sourceView = scene.views.find((view) => view.id === context.source_view_id)
-  if (sourceView) {
-    plan.source_view_id = sourceView.id
-    plan.source_revision = workspace.revision
-  }
-  await atomicWriteJson(path.join(root, INTERNAL_DIR, 'pending_plan.json'), plan)
-  return plan
 }
 
 export async function saveWorkspacePlan(root, input) {
@@ -732,6 +755,7 @@ export async function workspaceSummary(root) {
   return {
     schema_version: '1.0.0',
     id: workspace.id,
+    kind: workspace.kind || 'phylogeny-render',
     revision: workspace.revision,
     activity_revision: Number(workspace.activity_revision || 0),
     current_branch: workspace.current_branch,

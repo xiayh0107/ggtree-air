@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { normalizeRunSpec } from '../src/contracts.mjs'
@@ -47,10 +47,17 @@ test('agent-agnostic actions can be claimed and commit one or many real artifact
     assert.equal(progress.progress.percent, 70)
     assert.equal(progress.events.at(-1).type, 'progress')
     assert.equal(await pathExists(path.join(root, progress.progress.preview.path)), true)
-    const committedSourceImage = path.join(root, 'tree_rectangular_intents.png')
+    await assert.rejects(
+      commitActionArtifacts(root, action.id, [sourceImage], { agentId: 'test-agent' }),
+      /byte-identical/,
+    )
+    const candidateA = path.join(parent, 'candidate-a.txt')
+    const candidateB = path.join(parent, 'candidate-b.txt')
+    await writeFile(candidateA, 'real candidate A\n')
+    await writeFile(candidateB, 'real candidate B\n')
     const completed = await commitActionArtifacts(root, action.id, [
-      { path: committedSourceImage, label: 'Color scheme A' },
-      { path: committedSourceImage, label: 'Color scheme B' },
+      { path: candidateA, label: 'Color scheme A' },
+      { path: candidateB, label: 'Color scheme B' },
     ], { agentId: 'test-agent' })
     assert.equal(completed.status, 'completed')
     assert.equal(completed.outputs.length, 2)

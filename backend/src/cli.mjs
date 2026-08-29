@@ -2,7 +2,7 @@ import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { normalizeRunSpec } from './contracts.mjs'
 import { callRWorker } from './r-worker.mjs'
-import { createWorkspace, createWorkspaceBranch, listWorkspaceBranches, mergeWorkspaceBranch, refreshWorkspacePresentation, rerunWorkspace, saveNaturalLanguagePlan, saveWorkspacePlan, switchWorkspaceBranch, workspaceSummary } from './workspace.mjs'
+import { createArtifactWorkspace, createWorkspace, createWorkspaceBranch, listWorkspaceBranches, mergeWorkspaceBranch, refreshWorkspacePresentation, rerunWorkspace, saveWorkspacePlan, switchWorkspaceBranch, workspaceSummary } from './workspace.mjs'
 import { PROJECT_ROOT, readJson } from './paths.mjs'
 import { startWorkspaceServer } from './server.mjs'
 import { listRecipes, runRecipe } from './recipes.mjs'
@@ -10,10 +10,10 @@ import { openWorkspaceService, readServiceState, registerService, stopWorkspaceS
 import { inferRunSpec } from './auto-spec.mjs'
 import {
   claimAction, commitActionArtifacts, createAction, failAction, getAction,
-  listActions, markActionRunning, updateActionProgress, waitForAction,
+  importWorkspaceArtifact, listActions, markActionRunning, updateActionProgress,
+  waitForAction,
 } from './actions.mjs'
 import { bundledSkillPath, installBundledSkill, listBundledSkills } from './skill-manager.mjs'
-import { createPaperDemo, listPaperDemos, openPaperDemo } from './demos.mjs'
 
 const VERSION = '0.5.0'
 
@@ -24,7 +24,8 @@ Usage:
   ggtree-air check
   ggtree-air setup-r [--with-msa] [--with-recipes]
   ggtree-air skills list|path|install
-  ggtree-air demos list|create|open
+  ggtree-air workspace create --out WORKSPACE [--title TITLE]
+  ggtree-air artifacts import --workspace WORKSPACE --file INPUT
   ggtree-air recipes list
   ggtree-air recipes run CASE --out WORKSPACE [--force]
   ggtree-air auto --input TREE_OR_FASTA [--metadata TABLE] [--out WORKSPACE]
@@ -148,31 +149,18 @@ async function setupR(tokens) {
   return check()
 }
 
-async function demos(tokens) {
-  const [action = 'list', id, ...rest] = tokens
-  if (action === 'list') {
-    const values = await listPaperDemos()
-    console.log(values.map((demo) =>
-      `${demo.id.padEnd(20)} ${demo.installed ? 'installed' : 'available'}  ${demo.title}\n${''.padEnd(21)}${demo.paper.authors}, ${demo.paper.journal} ${demo.paper.year} · ${demo.paper.doi}`
-    ).join('\n'))
-    return 0
-  }
-  if (!id || !['create', 'open'].includes(action)) {
-    throw new Error('Use `demos list`, `demos create ID`, or `demos open ID`')
-  }
-  const options = parseArgs(rest, new Set(['force', 'no_browser']))
-  assertKnownOptions(options, ['force', 'no_browser'])
-  const result = action === 'open'
-    ? await openPaperDemo(id, {
-      force: Boolean(options.force), browser: !options.no_browser,
-      onLog: (chunk) => process.stderr.write(chunk),
-    })
-    : await createPaperDemo(id, {
-      force: Boolean(options.force), onLog: (chunk) => process.stderr.write(chunk),
-    })
-  console.log(JSON.stringify({
-    id: result.demo.id, root: result.root, url: result.service?.url || null,
-  }, null, 2))
+async function workspace(tokens) {
+  const [action, ...rest] = tokens
+  if (action !== 'create') throw new Error('Use `workspace create --out PATH [--title TITLE]`')
+  const options = parseArgs(rest, new Set(['force']))
+  assertKnownOptions(options, ['out', 'title', 'subtitle', 'force'])
+  if (!options.out) throw new Error('--out is required')
+  const root = path.resolve(options.out)
+  const value = await createArtifactWorkspace({
+    root, title: options.title || 'Untitled Agent task', subtitle: options.subtitle || '',
+    force: Boolean(options.force),
+  })
+  console.log(JSON.stringify({ workspace: root, id: value.id }, null, 2))
   return 0
 }
 
@@ -329,7 +317,7 @@ async function actions(tokens) {
     phase: options.phase, message: options.message, percent: options.percent,
     preview: options.preview, agentId: options.agent,
   })
-  else if (action === 'fail') result = await failAction(root, id, options.message)
+  else if (action === 'fail') result = await failAction(root, id, options.message, { agentId: options.agent })
   else throw new Error('actions command must be next, list, show, claim, running, progress, or fail')
   if (action !== 'show') await refreshWorkspacePresentation(root)
   console.log(JSON.stringify(result, null, 2))
@@ -338,7 +326,28 @@ async function actions(tokens) {
 
 async function artifacts(tokens) {
   const [action, id, ...rest] = tokens
-  if (action !== 'commit' || !id) throw new Error('Use `artifacts commit ACTION_ID --workspace PATH --file OUTPUT`')
+  if (action === 'import') {
+    const extracted = extractRepeatedFiles([id, ...rest].filter(Boolean))
+    const options = parseArgs(extracted.remaining)
+    assertKnownOptions(options, ['workspace', 'role', 'label'])
+    if (!options.workspace || extracted.files.length === 0) {
+      throw new Error('--workspace and at least one --file are required')
+    }
+    if (options.label && extracted.files.length > 1) throw new Error('--label requires exactly one --file')
+    const root = path.resolve(options.workspace)
+    const imported = []
+    for (const file of extracted.files) {
+      imported.push(await importWorkspaceArtifact(root, file, {
+        role: options.role || 'user-input', label: options.label,
+      }))
+    }
+    await refreshWorkspacePresentation(root)
+    console.log(JSON.stringify(imported, null, 2))
+    return 0
+  }
+  if (action !== 'commit' || !id) {
+    throw new Error('Use `artifacts import ...` or `artifacts commit ACTION_ID ...`')
+  }
   const extracted = extractRepeatedFiles(rest)
   const options = parseArgs(extracted.remaining)
   assertKnownOptions(options, ['workspace', 'agent'])
@@ -498,14 +507,7 @@ async function plan(tokens) {
     console.log(`Validated ${value.operations.length} operation(s) for revision ${value.base_revision}`)
     return 0
   }
-  if (action === 'natural') {
-    assertKnownOptions(options, ['workspace', 'prompt'])
-    if (!options.workspace || !options.prompt) throw new Error('--workspace and --prompt are required')
-    const value = await saveNaturalLanguagePlan(path.resolve(options.workspace), options.prompt)
-    console.log(JSON.stringify(value, null, 2))
-    return 0
-  }
-  throw new Error('Use `plan natural ...` or `plan apply ...`')
+  throw new Error('Use `plan apply --workspace PATH --file PLAN.json`; natural-language tasks belong to a real Agent Action')
 }
 
 async function refresh(tokens) {
@@ -537,7 +539,7 @@ export async function main(argv = process.argv.slice(2)) {
   if (command === 'check') return check()
   if (command === 'skills') return skills(tokens)
   if (command === 'setup-r') return setupR(tokens)
-  if (command === 'demos') return demos(tokens)
+  if (command === 'workspace') return workspace(tokens)
   if (command === 'recipes') return recipes(tokens)
   if (command === 'auto') return auto(tokens)
   if (command === 'actions') return actions(tokens)

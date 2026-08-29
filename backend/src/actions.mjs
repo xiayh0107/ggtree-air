@@ -196,7 +196,7 @@ export async function createAction(root, input) {
     updated: now,
     claim: null,
     outputs: [],
-    progress: { phase: 'queued', message: '等待外部 Agent 接单', percent: 0, updated: now, preview: null },
+    progress: { phase: 'queued', message: '等待 Agent 运行', percent: 0, updated: now, preview: null },
     events: [{ time: now, type: 'created', message: '用户提交了修改要求' }],
     error: null,
   }
@@ -213,6 +213,31 @@ export async function listActions(root, { status } = {}) {
   const actions = await Promise.all(names.map((name) => readJson(path.join(actionsDir(root), name))))
   return actions.filter((action) => !status || action.status === status)
     .sort((a, b) => a.created.localeCompare(b.created))
+}
+
+export async function interruptStaleManagedActions(root) {
+  root = path.resolve(root)
+  const actions = await listActions(root)
+  const interrupted = []
+  for (const action of actions) {
+    if (!['claimed', 'running'].includes(action.status)
+        || !String(action.claim?.agent_id || '').startsWith('managed:')) continue
+    action.status = 'failed'
+    action.error = { message: 'Managed Agent process was interrupted before committing output' }
+    action.progress = {
+      ...(action.progress || {}), phase: 'interrupted', message: action.error.message,
+      updated: isoNow(),
+    }
+    action.events = [...(action.events || []), {
+      time: isoNow(), type: 'interrupted', message: action.error.message,
+    }].slice(-50)
+    action.finished = isoNow()
+    action.updated = isoNow()
+    await atomicWriteJson(actionPath(root, action.id), action)
+    interrupted.push(action)
+  }
+  if (interrupted.length) await touchActivity(root)
+  return interrupted
 }
 
 export async function waitForAction(root, {
@@ -253,9 +278,16 @@ export async function claimAction(root, id, agentId) {
   return action
 }
 
+function assertClaimOwner(action, agentId) {
+  if (action.claim?.agent_id && String(agentId || '') !== action.claim.agent_id) {
+    throw new Error(`Action is claimed by ${action.claim.agent_id}`)
+  }
+}
+
 export async function markActionRunning(root, id, agentId) {
   root = path.resolve(root)
   const action = await getAction(root, id)
+  assertClaimOwner(action, agentId)
   if (!['pending', 'claimed'].includes(action.status)) throw new Error(`Action cannot run from ${action.status}`)
   action.status = 'running'
   action.claim ||= { agent_id: String(agentId || 'external-agent'), claimed: isoNow() }
@@ -273,6 +305,7 @@ export async function updateActionProgress(root, id, {
 } = {}) {
   root = path.resolve(root)
   const action = await getAction(root, id)
+  assertClaimOwner(action, agentId)
   if (!['pending', 'claimed', 'running'].includes(action.status)) {
     throw new Error(`Action cannot report progress from ${action.status}`)
   }
@@ -309,9 +342,10 @@ export async function updateActionProgress(root, id, {
   return action
 }
 
-export async function failAction(root, id, message) {
+export async function failAction(root, id, message, { agentId } = {}) {
   root = path.resolve(root)
   const action = await getAction(root, id)
+  assertClaimOwner(action, agentId)
   action.status = 'failed'
   action.error = { message: String(message || 'Agent failed to complete the action') }
   action.progress = { ...(action.progress || {}), phase: 'failed', message: action.error.message, updated: isoNow() }
@@ -327,7 +361,11 @@ export async function commitActionArtifacts(root, id, files, { agentId } = {}) {
   root = path.resolve(root)
   if (!Array.isArray(files) || files.length === 0) throw new Error('At least one output file is required')
   const action = await getAction(root, id)
+  assertClaimOwner(action, agentId)
   if (action.status === 'completed') throw new Error('Action is already completed')
+  if (['failed', 'cancelled'].includes(action.status)) throw new Error(`Action cannot commit from ${action.status}`)
+  const sourceHashes = new Set((action.sources || [action.source])
+    .map((source) => source?.artifact?.md5).filter(Boolean))
   const outputDir = path.join(root, '.ggtree-air', 'action-artifacts', id)
   await mkdir(outputDir, { recursive: true })
   const outputs = []
@@ -335,6 +373,11 @@ export async function commitActionArtifacts(root, id, files, { agentId } = {}) {
     const source = path.resolve(typeof entry === 'string' ? entry : entry.path)
     const info = await stat(source).catch(() => null)
     if (!info?.isFile()) throw new Error(`Output file does not exist: ${source}`)
+    if (info.size === 0) throw new Error(`Output file is empty: ${source}`)
+    const sourceHash = await md5File(source)
+    if (sourceHashes.has(sourceHash)) {
+      throw new Error('Output is byte-identical to an Action source; copied inputs cannot be committed as Agent work')
+    }
     const artifactId = randomUUID()
     const destination = path.join(outputDir, `${artifactId}-${path.basename(source)}`)
     await copyFile(source, destination)
