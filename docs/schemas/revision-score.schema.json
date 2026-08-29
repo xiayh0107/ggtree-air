@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ggtree-air.local/schemas/revision-score.schema.json",
+  "title": "ggtree-air operational revision scorecard",
+  "type": "object",
+  "required": ["schema_version", "revision", "score", "metrics", "interpretation"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "revision": {"type": "integer", "minimum": 1},
+    "score": {"type": "integer", "minimum": 0, "maximum": 100},
+    "metrics": {
+      "type": "object",
+      "required": ["feedback_total", "feedback_applied", "feedback_deferred", "feedback_skipped", "topology_preserved", "changed_views"]
+    },
+    "interpretation": {"type": "string"}
+  }
+}

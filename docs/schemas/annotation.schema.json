@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ggtree-air.local/schemas/annotation.schema.json",
+  "title": "ggtree-air visual feedback envelope",
+  "type": "object",
+  "required": ["schema_version", "scene_id", "created", "updated", "annotations"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "scene_id": {"type": "string", "pattern": "^tree:[0-9a-f]{32}$"},
+    "created": {"type": "string"},
+    "updated": {"type": "string"},
+    "annotations": {
+      "type": "array",
+      "maxItems": 200,
+      "items": {
+        "type": "object",
+        "required": ["id", "created", "artifact_hash", "view_id", "selector", "intent", "instruction"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "created": {"type": "string"},
+          "artifact_hash": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
+          "view_id": {"type": "string", "pattern": "^view:"},
+          "selector": {
+            "type": "object",
+            "required": ["kind"],
+            "properties": {
+              "kind": {"enum": ["tip", "clade", "edge", "view", "region", "stroke"]},
+              "node": {"type": "integer"},
+              "label": {"type": ["string", "null"]},
+              "edge_id": {"type": "string"},
+              "point": {
+                "type": "object",
+                "required": ["x", "y"],
+                "properties": {
+                  "x": {"type": "number", "minimum": 0, "maximum": 1},
+                  "y": {"type": "number", "minimum": 0, "maximum": 1}
+                }
+              },
+              "region": {
+                "type": "object",
+                "required": ["x", "y", "width", "height"],
+                "properties": {
+                  "x": {"type": "number", "minimum": 0, "maximum": 1},
+                  "y": {"type": "number", "minimum": 0, "maximum": 1},
+                  "width": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+                  "height": {"type": "number", "exclusiveMinimum": 0, "maximum": 1}
+                }
+              },
+              "points": {
+                "type": "array", "minItems": 2, "maxItems": 500,
+                "items": {
+                  "type": "object", "required": ["x", "y"],
+                  "properties": {
+                    "x": {"type": "number", "minimum": 0, "maximum": 1},
+                    "y": {"type": "number", "minimum": 0, "maximum": 1}
+                  }
+                }
+              }
+            }
+          },
+          "intent": {"enum": ["highlight", "label", "color", "hide", "compare", "question", "other"]},
+          "instruction": {"type": "string", "minLength": 1},
+          "preserve": {"type": "array", "items": {"type": "string"}},
+          "avoid": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    }
+  }
+}

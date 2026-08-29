@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ggtree-air.local/schemas/action.schema.json",
+  "title": "ggtree-air agent-agnostic action",
+  "type": "object",
+  "required": ["schema_version", "id", "workspace_id", "source", "instruction", "status", "created", "updated", "outputs"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "id": {"type": "string"},
+    "workspace_id": {"type": "string"},
+    "branch": {"type": "string"},
+    "source": {"type": "object"},
+    "instruction": {"type": "string", "minLength": 1, "maxLength": 8000},
+    "selection": {"type": ["object", "null"]},
+    "status": {"enum": ["pending", "claimed", "running", "completed", "failed", "cancelled"]},
+    "claim": {"type": ["object", "null"]},
+    "progress": {"type": "object"},
+    "events": {"type": "array", "maxItems": 50},
+    "outputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "action_id", "path", "md5", "media_type", "bytes", "created"]
+      }
+    },
+    "error": {"type": ["object", "null"]},
+    "created": {"type": "string"},
+    "updated": {"type": "string"}
+  }
+}

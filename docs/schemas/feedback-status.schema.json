@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ggtree-air.local/schemas/feedback-status.schema.json",
+  "title": "ggtree-air feedback application status",
+  "type": "object",
+  "required": ["schema_version", "items"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "source_scene_id": {"type": ["string", "null"]},
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status", "note"],
+        "properties": {
+          "id": {"type": "string"},
+          "status": {"enum": ["applied", "deferred", "skipped"]},
+          "note": {"type": "string"}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+# Generated workspaces and runtime state
+results/
+**/.ggtree-air/
+
+# R local state
+.Rhistory
+.RData
+.Rproj.user/
+
+# Downloaded upstream example data (catalog/checksums stay tracked)
+examples/treedata-book/data/
+
+# Distribution output
+/dist/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# OS
+.DS_Store

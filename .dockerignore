@@ -1,0 +1,10 @@
+.git
+.github
+node_modules
+dist
+results
+examples/treedata-book/data
+*.tgz
+.DS_Store
+.Rhistory
+.RData

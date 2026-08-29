@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ggtree-air.local/schemas/revision-graph.schema.json",
+  "title": "ggtree-air workflow revision graph",
+  "type": "object",
+  "required": ["current_branch", "next_revision", "branches", "revisions"],
+  "properties": {
+    "current_branch": {"type": "string"},
+    "next_revision": {"type": "integer", "minimum": 2},
+    "branches": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["name", "head_revision", "created", "from_revision"]
+      }
+    },
+    "revisions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["revision", "parents", "branch", "created", "spec"],
+        "properties": {
+          "revision": {"type": "integer", "minimum": 1},
+          "parents": {"type": "array", "maxItems": 2, "items": {"type": "integer"}},
+          "branch": {"type": "string"},
+          "created": {"type": "string"},
+          "spec": {"type": "object"}
+        }
+      }
+    }
+  }
+}

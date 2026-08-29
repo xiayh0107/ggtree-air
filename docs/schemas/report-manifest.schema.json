@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ggtree-air.local/schemas/report-manifest.schema.json",
+  "title": "ggtree-air Node workspace report manifest",
+  "type": "object",
+  "required": ["schema_version", "created", "generator", "workspace", "report", "scene", "annotations", "input", "artifacts"],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "created": {"type": "string"},
+    "generator": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": {"const": "ggtree-air-node"},
+        "version": {"type": "string"}
+      }
+    },
+    "workspace": {
+      "type": "object",
+      "required": ["id", "revision"],
+      "properties": {
+        "id": {"type": "string"},
+        "revision": {"type": "integer", "minimum": 1}
+      }
+    },
+    "title": {"type": "string"},
+    "report": {"const": "report.html"},
+    "scene": {"const": "scene.json"},
+    "annotations": {"const": "annotations.json"},
+    "scene_id": {"type": "string", "pattern": "^tree:[0-9a-f]{32}$"},
+    "input": {"type": "object"},
+    "scientific_context": {"type": "object"},
+    "parameters": {"type": "object"},
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "role", "media_type", "bytes", "md5"],
+        "properties": {
+          "path": {"type": "string"},
+          "role": {"type": "string"},
+          "media_type": {"type": "string"},
+          "bytes": {"type": "number", "minimum": 1},
+          "md5": {"type": "string", "pattern": "^[0-9a-f]{32}$"}
+        }
+      }
+    }
+  }
+}

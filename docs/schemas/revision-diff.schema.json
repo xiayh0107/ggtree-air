@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ggtree-air.local/schemas/revision-diff.schema.json",
+  "title": "ggtree-air revision artifact diff",
+  "type": "object",
+  "required": ["schema_version", "revision", "parent_revision", "topology_preserved", "feedback", "views"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "revision": {"type": "integer", "minimum": 1},
+    "parent_revision": {"type": ["integer", "null"]},
+    "topology_preserved": {"type": "boolean"},
+    "feedback": {"type": "object"},
+    "views": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["layout", "previous_md5", "current_md5", "changed"],
+        "properties": {
+          "layout": {"type": "string"},
+          "previous_md5": {"type": ["string", "null"]},
+          "current_md5": {"type": ["string", "null"]},
+          "changed": {"type": "boolean"}
+        }
+      }
+    }
+  }
+}

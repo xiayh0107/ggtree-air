@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0.0",
+  "source": {
+    "repository": "https://github.com/YuLab-SMU/treedata-book",
+    "commit": "1af8f25551105279a2b8b5b1a449eb002936ce9f",
+    "companion_repository": "https://github.com/YuLab-SMU/TDbook",
+    "companion_commit": "60b2de7f8df45b440c93cc17513e868ee98c1496"
+  },
+  "cases": {
+    "mammal-traits": {
+      "description": "Mammal phylogeny with trophic habit, body mass, vernacular names and internal support metadata (treedata-book chapter 7).",
+      "files": [
+        {"name": "mammal-tree.nwk", "path": "data-backup/tree_boots.nwk", "sha256": "025ba52888f51755b3c4677f2fb3041d0d6e551d7969e434863f94d4a6bb36c2"},
+        {"name": "mammal-tip-metadata.csv", "path": "data-backup/tip_data.csv", "sha256": "612ae4202413c71c23ec2f9bbc6a2226cf5e96966ef22492c9b332b704457883"},
+        {"name": "mammal-node-metadata.csv", "path": "data-backup/inode_data.csv", "sha256": "19c146265186af03c46e3f9cecde13c11a35e0e83cf6cd2ac90645cb6d571d3f"}
+      ]
+    },
+    "candida-auris": {
+      "description": "304 Candida auris isolates with clade, country, antifungal resistance and target mutations (treedata-book chapter 10).",
+      "files": [
+        {
+          "name": "candida-auris-tree.nwk",
+          "path": "data-backup/microreact/Candida_auris/microreact-project-Candidaauris-tree.nwk",
+          "sha256": "e61d35305457bdcfb3cfa1de1dae0cad5226896a054840a912cf0f5233d23eb0"
+        },
+        {
+          "name": "candida-auris-metadata.csv",
+          "path": "data-backup/microreact/Candida_auris/microreact-project-Candidaauris-data.csv",
+          "sha256": "feb97487aefa8bc245811b5322bfe1ba639d07f4281c2259be7cb6c46672f65f"
+        }
+      ]
+    },
+    "hmp-microbiome": {
+      "description": "Human Microbiome Project phylogeny with body-site abundance tracks (treedata-book chapter 10).",
+      "files": [
+        {"name": "hmp-tree.nwk", "path": "data-backup/HMP_tree/hmptree.nwk", "sha256": "32d178c55d27212af15c814f26ea5de21e1b9d24ce5299eb9e60caca805be67f"},
+        {"name": "hmp-tip-points.csv", "path": "data-backup/HMP_tree/tippoint_attr.csv", "sha256": "b7680ffdb13f295264588e3ffbfd5f118fb36c26d9e6f1965665080f5c1cc951"},
+        {"name": "hmp-ring-heatmap.csv", "path": "data-backup/HMP_tree/ringheatmap_attr.csv", "sha256": "b8d44d67868d398a5f49f2cc61bce4129283d59b17e3c3e95ac591ebab5c3ada"},
+        {"name": "hmp-bars.csv", "path": "data-backup/HMP_tree/barplot_attr.csv", "sha256": "f91b0126a8bb4e6bc731ba6f382113168dc16ee093a6eed0079a1b8d64e5ffe0"}
+      ]
+    },
+    "hpv58": {
+      "description": "HPV58 lineage tree used for clade and sequence-distance examples (treedata-book chapter 13).",
+      "files": [
+        {"name": "hpv58-tree.nwk", "path": "data-backup/HPV58.tree", "sha256": "6f2452eae0c5f96d0fcf39b3d77cfca920d401f6e74b401f2fb236cd467cefdc"},
+        {"name": "hpv58-alignment.fas", "path": "data-backup/HPV58_aln.fas", "sha256": "aa869a6035c38e2364046b007b6feede30a9d0989d9a7330e30a363de5bc7ead"}
+      ]
+    }
+  }
+}

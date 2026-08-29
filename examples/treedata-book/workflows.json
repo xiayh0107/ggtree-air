@@ -1,0 +1,87 @@
+{
+  "schema_version": "1.0.0",
+  "recipes": [
+    {
+      "id": "mammal-traits",
+      "title": "Mammal traits · trophic habit and body mass",
+      "description": "Seven mammal species with trophic groups, body-mass point scaling and aligned trait tracks.",
+      "source_case": "mammal-traits",
+      "prepare": null,
+      "spec": {
+        "tree": "mammal-tree.nwk",
+        "metadata": "mammal-tip-metadata.csv",
+        "tip_column": "Newick_label",
+        "group_column": "trophic_habit",
+        "size_column": "mass_in_kg",
+        "shape_column": "trophic_habit",
+        "heatmap_columns": ["mass_in_kg", "trophic_habit"],
+        "layouts": ["rectangular", "circular"],
+        "intents": ["tipcolor", "heatmap", "treescale"],
+        "tip_labels": "show",
+        "render": {"width": 10, "height": 7, "dpi": 150, "formats": ["png", "svg"]},
+        "subtitle": "treedata-book chapter 7 · attached tip traits"
+      }
+    },
+    {
+      "id": "candida-auris",
+      "title": "Candida auris · resistance and target mutations",
+      "description": "305 tree tips, 304 metadata rows, four clades and five resistance/mutation tracks.",
+      "source_case": "candida-auris",
+      "prepare": null,
+      "spec": {
+        "tree": "candida-auris-tree.nwk",
+        "metadata": "candida-auris-metadata.csv",
+        "tip_column": "ID",
+        "group_column": "CLADE",
+        "heatmap_columns": ["FCZ", "AMB", "MCF", "ERG11", "FKS1"],
+        "layouts": ["fan", "rectangular"],
+        "intents": ["tipcolor", "heatmap", "treescale"],
+        "tip_labels": "hide",
+        "render": {"width": 12, "height": 10, "dpi": 120, "formats": ["png"]},
+        "subtitle": "treedata-book chapter 10 · 305 tips / 304 metadata rows"
+      }
+    },
+    {
+      "id": "hmp-microbiome",
+      "title": "Human microbiome · body-site prevalence",
+      "description": "334 tree tips, 14 phyla, tip shape/size metadata and seven body-site abundance tracks.",
+      "source_case": "hmp-microbiome",
+      "prepare": "prepare-hmp.mjs",
+      "spec": {
+        "tree": "hmp-tree.nwk",
+        "repair_tip_labels": true,
+        "metadata": "hmp-metadata-wide.csv",
+        "tip_column": "ID",
+        "group_column": "Phylum",
+        "size_column": "Size",
+        "shape_column": "Type",
+        "heatmap_columns": ["Stool", "Cheek", "Plaque", "Tongue", "Nose", "Vagina", "Skin"],
+        "layouts": ["fan", "rectangular"],
+        "intents": ["tipcolor", "heatmap", "treescale"],
+        "tip_labels": "hide",
+        "render": {"width": 12, "height": 10, "dpi": 120, "formats": ["png"]},
+        "subtitle": "treedata-book chapter 10 · 334 tips / 7 body-site tracks"
+      }
+    },
+    {
+      "id": "hpv58",
+      "title": "HPV58 · lineage and sequence distance",
+      "description": "90 complete genomes, eight named lineages and mean/max pairwise nucleotide-distance tracks.",
+      "source_case": "hpv58",
+      "prepare": "prepare-hpv58.mjs",
+      "spec": {
+        "tree": "hpv58-tree.nwk",
+        "metadata": "hpv58-distance-metadata.csv",
+        "tip_column": "ID",
+        "heatmap_columns": ["MeanDistance", "MaxDistance"],
+        "clade_nodes": [92, 94, 108, 156, 159, 163, 173, 176],
+        "clade_labels": ["A3", "A1", "A2", "B1", "B2", "C", "D1", "D2"],
+        "layouts": ["rectangular", "circular"],
+        "intents": ["branchcolor", "cladelabel", "heatmap", "treescale"],
+        "tip_labels": "hide",
+        "render": {"width": 12, "height": 10, "dpi": 120, "formats": ["png"]},
+        "subtitle": "treedata-book chapter 13 · 90 complete genomes"
+      }
+    }
+  ]
+}
