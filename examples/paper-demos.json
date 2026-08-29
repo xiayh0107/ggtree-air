@@ -15,6 +15,7 @@
       },
       "evidence": "map and visualize associated data on phylogeny",
       "story": "用户先得到基础树，再要求把营养类型映射到颜色/形状、把体重映射到点大小，并增加关联数据轨道。",
+      "reference_asset": "user-stories/assets/reference-associated-data.png",
       "actions": [
         {
           "layout": "rectangular",
@@ -38,6 +39,7 @@
       },
       "evidence": "compared the genomes of 304 C. auris isolates from 19 countries",
       "story": "用户希望同时看到四个主要 clade、三类抗真菌药耐药状态以及 ERG11/FKS1 靶点突变。",
+      "reference_asset": "user-stories/assets/reference-candida-resistance.png",
       "actions": [
         {
           "layout": "fan",
@@ -61,6 +63,7 @@
       },
       "evidence": "relative abundance of the microbiome at different body sites",
       "story": "用户面对 334 个微生物 tips，需要按 phylum 着色，并把七个身体部位的丰度压缩成可读外圈。",
+      "reference_asset": "user-stories/assets/reference-hmp-body-sites.png",
       "actions": [
         {
           "layout": "fan",
@@ -84,6 +87,7 @@
       },
       "evidence": "identifies inter- and intracontinental transmission events",
       "story": "用户要在超大树中同时观察国家、采样年份和 H58 haplotype，并隐藏不可读的 tip 标签。",
+      "reference_asset": "user-stories/assets/reference-typhi-h58.png",
       "actions": [
         {
           "layout": "fan",
@@ -107,6 +111,7 @@
       },
       "evidence": "phylogenetic analyses ... deep evolutionary history of HPV58",
       "story": "用户希望标出八个 lineage，并把 90 个完整基因组的平均/最大成对距离与树对齐。",
+      "reference_asset": "user-stories/assets/reference-hpv58-lineages.png",
       "actions": [
         {
           "layout": "rectangular",

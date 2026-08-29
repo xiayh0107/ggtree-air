@@ -4,8 +4,8 @@ import { rm } from 'node:fs/promises'
 import { PROJECT_ROOT, pathExists, readJson } from './paths.mjs'
 import { runRecipe } from './recipes.mjs'
 import {
-  claimAction, commitActionArtifacts, createAction, markActionRunning,
-  updateActionProgress,
+  claimAction, commitActionArtifacts, createAction, importWorkspaceArtifact,
+  markActionRunning, updateActionProgress,
 } from './actions.mjs'
 import { refreshWorkspacePresentation } from './workspace.mjs'
 import { openWorkspaceService, readServiceState } from './service-manager.mjs'
@@ -49,10 +49,24 @@ export async function createPaperDemo(id, { force = false, onLog = () => undefin
   if (force) await rm(root, { recursive: true, force: true })
   if (!await pathExists(path.join(root, 'workspace.json'))) {
     await runRecipe({ id: demo.recipe, outputDir: root, force: true, onLog })
+    const referenceArtifact = await importWorkspaceArtifact(
+      root, path.join(PROJECT_ROOT, 'examples', demo.reference_asset), {
+        label: `${demo.paper.authors} ${demo.paper.year} · 参考风格`,
+        role: 'paper-reference',
+        metadata: {
+          paper: demo.paper,
+          evidence: demo.evidence,
+          note: 'Paper-grounded style reference; see DOI and demo provenance.',
+        },
+      },
+    )
     for (let index = 0; index < (demo.actions || []).length; index += 1) {
       const scripted = demo.actions[index]
       const action = await createAction(root, {
-        source: { kind: 'revision-view', revision: 1, layout: scripted.layout },
+        sources: [
+          { kind: 'workspace-artifact', artifact_id: referenceArtifact.id },
+          { kind: 'revision-view', revision: 1, layout: scripted.layout },
+        ],
         instruction: scripted.instruction,
       })
       const agent = `paper-demo:${demo.id}`

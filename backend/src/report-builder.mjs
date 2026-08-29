@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { FRONTEND_ROOT, atomicWriteFile, pathExists, readJson } from './paths.mjs'
-import { listActions } from './actions.mjs'
+import { listActions, listWorkspaceArtifacts } from './actions.mjs'
 
 function htmlEscape(value) {
   return String(value ?? '').replace(/[&<>'"]/g, (character) => ({
@@ -110,6 +110,14 @@ export async function buildReport({
     )
 
   const actions = await listActions(workspaceRoot)
+  const workspaceArtifacts = await listWorkspaceArtifacts(workspaceRoot)
+  for (const artifact of workspaceArtifacts) {
+    if (!artifact.media_type?.startsWith('image/')) continue
+    const target = path.join(workspaceRoot, artifact.path)
+    if (await pathExists(target)) {
+      artifact.data_uri = `data:${artifact.media_type.split(';')[0]};base64,${(await readFile(target)).toString('base64')}`
+    }
+  }
   for (const action of actions) {
     for (const output of action.outputs || []) {
       if (!output.media_type?.startsWith('image/')) continue
@@ -137,6 +145,7 @@ export async function buildReport({
     annotations,
     pending_plan: pendingPlan,
     actions,
+    workspace_artifacts: workspaceArtifacts,
     variants: currentRevision.variants,
     run_metadata: currentRevision.run_metadata,
     feedback_status: currentRevision.feedback_status,

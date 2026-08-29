@@ -7,8 +7,9 @@ import { normalizeRunSpec } from '../src/contracts.mjs'
 import { PROJECT_ROOT, pathExists } from '../src/paths.mjs'
 import { createWorkspace } from '../src/workspace.mjs'
 import {
-  claimAction, commitActionArtifacts, createAction, getAction, listActions,
-  markActionRunning, updateActionProgress, waitForAction,
+  claimAction, commitActionArtifacts, createAction, getAction,
+  importWorkspaceArtifact, listActions, markActionRunning, updateActionProgress,
+  waitForAction,
 } from '../src/actions.mjs'
 
 const fixture = path.join(PROJECT_ROOT, 'renderer/r/fixtures/easy_input.dist.tsv')
@@ -22,16 +23,23 @@ test('agent-agnostic actions can be claimed and commit one or many real artifact
       render: { width: 4, height: 3, dpi: 60, formats: ['png'] },
     })
     await createWorkspace({ root, spec })
+    const sourceImage = path.join(root, 'tree_rectangular_intents.png')
+    const reference = await importWorkspaceArtifact(root, sourceImage, {
+      label: 'Paper Figure reference', role: 'paper-reference',
+    })
     const action = await createAction(root, {
-      source: { kind: 'revision-view', revision: 1, layout: 'rectangular' },
+      sources: [
+        { kind: 'workspace-artifact', artifact_id: reference.id },
+        { kind: 'revision-view', revision: 1, layout: 'rectangular' },
+      ],
       instruction: 'Try two clearly different color schemes',
       selection: { kind: 'region', region: { x: 0.1, y: 0.2, width: 0.3, height: 0.4 } },
     })
     assert.equal(action.status, 'pending')
+    assert.equal(action.sources.length, 2)
     assert.equal((await listActions(root, { status: 'pending' })).length, 1)
     await claimAction(root, action.id, 'test-agent')
     await markActionRunning(root, action.id, 'test-agent')
-    const sourceImage = path.join(root, 'tree_rectangular_intents.png')
     const progress = await updateActionProgress(root, action.id, {
       phase: 'preview', message: 'Rendered two candidates; checking labels',
       percent: 70, preview: sourceImage, agentId: 'test-agent',

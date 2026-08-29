@@ -16,6 +16,43 @@ function actionPath(root, id) {
   return path.join(actionsDir(root), `${id}.json`)
 }
 
+function workspaceAssetsPath(root) {
+  return path.join(root, '.ggtree-air', 'workspace-artifacts.json')
+}
+
+export async function listWorkspaceArtifacts(root) {
+  const target = workspaceAssetsPath(path.resolve(root))
+  return await pathExists(target) ? readJson(target) : []
+}
+
+export async function importWorkspaceArtifact(root, file, {
+  label, role = 'reference', mediaType, metadata = {},
+} = {}) {
+  root = path.resolve(root)
+  const source = path.resolve(file)
+  const info = await stat(source).catch(() => null)
+  if (!info?.isFile()) throw new Error(`Workspace artifact does not exist: ${source}`)
+  const id = randomUUID()
+  const directory = path.join(root, '.ggtree-air', 'workspace-artifacts')
+  await mkdir(directory, { recursive: true })
+  const destination = path.join(directory, `${id}-${path.basename(source)}`)
+  await copyFile(source, destination)
+  const record = await artifactRecord(destination, root, role)
+  const artifact = {
+    id,
+    label: String(label || path.basename(source)),
+    ...record,
+    media_type: mediaType || record.media_type,
+    metadata,
+    created: isoNow(),
+  }
+  const assets = await listWorkspaceArtifacts(root)
+  assets.push(artifact)
+  await atomicWriteJson(workspaceAssetsPath(root), assets)
+  await touchActivity(root)
+  return artifact
+}
+
 async function rawWorkspace(root) {
   return readJson(path.join(root, 'workspace.json'))
 }
@@ -54,6 +91,13 @@ async function revisionSource(root, source) {
     scene,
     view,
   }
+}
+
+async function workspaceArtifactSource(root, source) {
+  const artifact = (await listWorkspaceArtifacts(root))
+    .find((candidate) => candidate.id === source.artifact_id)
+  if (!artifact) throw new Error(`Unknown workspace artifact: ${source.artifact_id}`)
+  return { kind: 'workspace-artifact', artifact }
 }
 
 async function externalArtifactSource(root, source) {
@@ -103,28 +147,39 @@ export async function createAction(root, input) {
   const instruction = String(input?.instruction || '').trim()
   if (!instruction) throw new Error('Action instruction must be non-empty')
   if (instruction.length > 8000) throw new Error('Action instruction is too long')
-  if (!input?.source || typeof input.source !== 'object') throw new Error('Action source is required')
+  const requestedSources = Array.isArray(input?.sources) && input.sources.length
+    ? input.sources : input?.source ? [input.source] : []
+  if (!requestedSources.length) throw new Error('At least one Action source is required')
+  if (requestedSources.length > 20) throw new Error('An Action may reference at most 20 sources')
 
-  let source
   let selection = input.selection || null
-  if (input.source.kind === 'revision-view') {
-    source = await revisionSource(root, input.source)
-    if (selection) {
-      const envelope = {
-        schema_version: '1.0.0', scene_id: source.scene.scene_id,
-        created: isoNow(), updated: isoNow(), annotations: [{
-          id: 'selection', created: isoNow(), artifact_hash: source.view.artifact.md5,
-          view_id: source.view.id, selector: selection, intent: 'other', instruction,
-        }],
+  const sources = []
+  let semanticSelectionValidated = false
+  for (const requested of requestedSources) {
+    if (requested.kind === 'revision-view') {
+      const source = await revisionSource(root, requested)
+      if (selection && !semanticSelectionValidated) {
+        const envelope = {
+          schema_version: '1.0.0', scene_id: source.scene.scene_id,
+          created: isoNow(), updated: isoNow(), annotations: [{
+            id: 'selection', created: isoNow(), artifact_hash: source.view.artifact.md5,
+            view_id: source.view.id, selector: selection, intent: 'other', instruction,
+          }],
+        }
+        selection = normalizeAnnotationEnvelope(envelope, source.scene).annotations[0].selector
+        semanticSelectionValidated = true
       }
-      selection = normalizeAnnotationEnvelope(envelope, source.scene).annotations[0].selector
-    }
-    delete source.scene
-    delete source.view
-  } else if (input.source.kind === 'action-artifact') {
-    source = await externalArtifactSource(root, input.source)
-    selection = normalizedFreeSelection(selection)
-  } else throw new Error('Unsupported action source kind')
+      delete source.scene
+      delete source.view
+      sources.push(source)
+    } else if (requested.kind === 'action-artifact') {
+      sources.push(await externalArtifactSource(root, requested))
+    } else if (requested.kind === 'workspace-artifact') {
+      sources.push(await workspaceArtifactSource(root, requested))
+    } else throw new Error(`Unsupported Action source kind: ${requested.kind}`)
+  }
+  if (selection && !semanticSelectionValidated) selection = normalizedFreeSelection(selection)
+  const source = sources[0]
 
   const now = isoNow()
   const action = {
@@ -133,6 +188,7 @@ export async function createAction(root, input) {
     workspace_id: (await rawWorkspace(root)).id,
     branch: (await rawWorkspace(root)).current_branch || 'main',
     source,
+    sources,
     instruction,
     selection,
     status: 'pending',

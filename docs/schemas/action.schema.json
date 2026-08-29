@@ -10,6 +10,7 @@
     "workspace_id": {"type": "string"},
     "branch": {"type": "string"},
     "source": {"type": "object"},
+    "sources": {"type": "array", "minItems": 1, "maxItems": 20, "items": {"type": "object"}},
     "instruction": {"type": "string", "minLength": 1, "maxLength": 8000},
     "selection": {"type": ["object", "null"]},
     "status": {"enum": ["pending", "claimed", "running", "completed", "failed", "cancelled"]},

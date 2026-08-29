@@ -11,6 +11,7 @@
     || revisions[revisions.length - 1]
   const variants = currentRevisionData.variants
   let protocolActions = Array.isArray(payload.actions) ? payload.actions : []
+  const workspaceArtifacts = Array.isArray(payload.workspace_artifacts) ? payload.workspace_artifacts : []
   const apiToken = window.__GGTREE_AIR_API_TOKEN__
   const liveApi = typeof apiToken === 'string' && !apiToken.includes('__GGTREE_AIR_')
   const stage = document.getElementById('canvas-stage')
@@ -154,7 +155,7 @@
         branch: revision.branch,
         current: revision.current,
         variant: preferredVariant(view.layout, revision.revision),
-        x: 80 + depthOf(revision) * revisionGap,
+        x: (workspaceArtifacts.length ? 600 : 80) + depthOf(revision) * revisionGap,
         y: viewStartY + (branchLane.get(revision.branch) || 0) * laneHeight + index * viewGap,
         w: 430,
         h: 330,
@@ -228,32 +229,53 @@
         h: 210,
       }]
     })() : []
+    const workspaceArtifactNodes = workspaceArtifacts.map((artifact, index) => ({
+      id: `workspace-artifact-${artifact.id}`,
+      type: 'external-artifact',
+      title: artifact.label,
+      artifact,
+      x: 80,
+      y: viewStartY + index * 360,
+      w: 430,
+      h: 330,
+      current: true,
+    }))
     const protocolNodes = []
     const protocolEdges = []
-    const protocolNodeById = new Map(resultNodes.map((node) => [node.id, node]))
+    const protocolNodeById = new Map([...resultNodes, ...workspaceArtifactNodes].map((node) => [node.id, node]))
     for (const action of protocolActions) {
-      let sourceNodeId = action.source.kind === 'revision-view'
-        ? `view-r${action.source.revision}-${action.source.layout}`
-        : `agent-artifact-${action.source.artifact?.id || action.source.artifact_id}`
-      let sourceNode = protocolNodeById.get(sourceNodeId)
-      if (!sourceNode && action.source.kind === 'revision-view') {
-        sourceNode = [...resultNodes].reverse().find((node) => node.layout === action.source.layout)
-        sourceNodeId = sourceNode?.id
-      }
-      if (!sourceNode) continue
+      const requestedSources = action.sources?.length ? action.sources : [action.source]
+      const sourceEntries = requestedSources.map((source) => {
+        let id = source.kind === 'revision-view'
+          ? `view-r${source.revision}-${source.layout}`
+          : source.kind === 'workspace-artifact'
+            ? `workspace-artifact-${source.artifact?.id || source.artifact_id}`
+            : `agent-artifact-${source.artifact?.id || source.artifact_id}`
+        let node = protocolNodeById.get(id)
+        if (!node && source.kind === 'revision-view') {
+          node = [...resultNodes].reverse().find((candidate) => candidate.layout === source.layout)
+          id = node?.id
+        }
+        return node ? { id, node } : null
+      }).filter(Boolean)
+      if (!sourceEntries.length) continue
+      const sourceRight = Math.max(...sourceEntries.map(({ node }) => node.x + node.w))
+      const sourceCenterY = sourceEntries.reduce((sum, { node }) => sum + node.y + node.h / 2, 0) / sourceEntries.length
       const actionNode = {
         id: `agent-action-${action.id}`,
         type: 'protocol-action',
         title: shortInstruction(action.instruction, 28),
         action,
-        x: sourceNode.x + sourceNode.w + 250,
-        y: sourceNode.y + 55,
+        x: sourceRight + 250,
+        y: sourceCenterY - 95,
         w: 300,
         h: action.progress?.preview ? 310 : 230,
       }
       protocolNodes.push(actionNode)
       protocolNodeById.set(actionNode.id, actionNode)
-      protocolEdges.push({ from: sourceNodeId, to: actionNode.id, label: 'agent action' })
+      sourceEntries.forEach(({ id }) => {
+        protocolEdges.push({ from: id, to: actionNode.id, label: 'agent action' })
+      })
       ;(action.outputs || []).forEach((artifact, index) => {
         const artifactNode = {
           id: `agent-artifact-${artifact.id}`,
@@ -273,6 +295,7 @@
       })
     }
     const nodes = [
+      ...workspaceArtifactNodes,
       ...resultNodes,
       ...revisionActionNodes,
       ...draftFeedbackNodes,
@@ -549,7 +572,9 @@
     send.textContent = '…'
     try {
       const source = node.type === 'external-artifact'
-        ? { kind: 'action-artifact', artifact_id: node.artifact.id }
+        ? node.artifact.action_id
+          ? { kind: 'action-artifact', artifact_id: node.artifact.id }
+          : { kind: 'workspace-artifact', artifact_id: node.artifact.id }
         : { kind: 'revision-view', revision: node.revision, layout: node.layout }
       const action = await apiFetch('/api/actions', {
         method: 'POST',

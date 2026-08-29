@@ -69,8 +69,8 @@ ggtree-air actions running <action-id> \
 
 The Action JSON contains:
 
-- `source.artifact.path` and hash;
-- source revision/layout when applicable;
+- `sources[]`: one or more reference figures, user artifacts, and revision views;
+- each source artifact path/hash and revision/layout when applicable;
 - user's exact `instruction`;
 - optional semantic tip/clade, normalized rectangle, or freehand stroke;
 - status and provenance.
@@ -79,7 +79,7 @@ Resolve every relative artifact path against the workspace root.
 
 ## Execute the request
 
-1. Read the source tree/data, current R code or run metadata, and preview.
+1. Read every source: paper/reference figure, user tree/data, current R code or run metadata, and previews. Treat reference figures as visual guidance and user data as the content to render.
 2. Read the selection as context, not as a hard-coded operation:
    - `tip` / `clade`: stable semantic target;
    - `region`: normalized image rectangle;
