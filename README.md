@@ -1,291 +1,275 @@
 # ggtree-air
 
-**v0.5 — requirement-driven, self-opening phylogenetic workflow.** Release acceptance and explicit
-boundaries are tracked in [`docs/STATUS.md`](docs/STATUS.md).
+> **把系统发育树交给任意 Agent：它负责读数据、画图、打开节点画布，并持续处理你的点选、框选、涂鸦和文字修改，直到你满意。**
 
-A revisioned, agent-interactive workspace for phylogenetic analysis and visualization.
+## 一句话开始
 
-The central architectural rule is separation of responsibilities:
-
-```text
-┌───────────────────────────────────────────────────────────────┐
-│ skills/      Agent knowledge: route requests, choose params,  │
-│              explain scientific limits                       │
-└──────────────────────────────┬────────────────────────────────┘
-                               │ invoke
-┌──────────────────────────────▼────────────────────────────────┐
-│ backend/     Node program: API, workspace, security, hashes,  │
-│              annotations, atomic revisions, R process control │
-└──────────────────────────────┬────────────────────────────────┘
-                               │ JSON subprocess protocol
-┌──────────────────────────────▼────────────────────────────────┐
-│ renderer/r/  Isolated scientific worker: ape/treeio/ggtree,   │
-│              NJ/MSA, plot layers, semantic coordinates        │
-└──────────────────────────────┬────────────────────────────────┘
-                               │ artifacts + scene.json
-┌──────────────────────────────▼────────────────────────────────┐
-│ frontend/    Self-contained node canvas: inspect, annotate,   │
-│              submit feedback, reload the next revision        │
-└───────────────────────────────────────────────────────────────┘
-```
-
-The drawing skill is **not** the backend, and R is **not** the lifecycle
-orchestrator. R remains where it is strongest: phylogenetic computation and
-ggtree rendering. Node owns the application.
-
-## Closed loop
-
-1. Node validates a run specification and starts an isolated R worker.
-2. R validates the scientific input, builds/loads the tree, renders plots, and
-   returns artifacts plus exact ggplot-projected semantic coordinates.
-3. Node creates a checksummed workspace and packages the canvas report.
-4. A human opens a result node, clicks a real tip/clade, and writes feedback.
-5. The backend validates `scene_id + view_id + artifact_hash`, then atomically
-   persists `annotations.json`.
-6. **Generate downstream node** archives the old revision, launches a fresh R
-   worker, applies deterministic overlays, and creates a new immutable artifact
-   node for each layout in the next revision. Earlier result nodes stay visible
-   and read-only; lineage edges connect old result → feedback → new result.
-7. Applied/deferred/skipped status is recorded per instruction. Unsupported
-   requests are never silently pretended to be complete.
-
-## Quick start
-
-Requirements: Node.js ≥20, R ≥4.0, and the R packages reported by `make check`.
-
-```bash
-make check
-make rich-demo
-make serve-rich
-```
-
-Available source-backed workflows can also be listed and run through the
-versioned recipe registry:
-
-```bash
-node backend/bin/ggtree-air.mjs recipes list
-node backend/bin/ggtree-air.mjs recipes run hmp-microbiome \
-  --out results/hmp-microbiome --force
-```
-
-The registry currently includes `mammal-traits`, `candida-auris`,
-`hmp-microbiome`, and `hpv58`. The mammal recipe also exercises publication SVG
-output.
-
-`make rich-demo` fetches the checksum-pinned *Candida auris* chapter-10 case from
-[treedata-book](https://github.com/YuLab-SMU/treedata-book): 305 tree tips,
-304 metadata rows, four clades, three antifungal-resistance tracks, and two
-drug-target mutation tracks. Use `make demo && make serve` only for the small,
-fast smoke-test fixture. A second real-world workflow is available with
-`make hmp-demo && make serve-hmp`: 334 HMP tips, 14 phyla, and seven body-site
-abundance tracks. `make hpv-demo && make serve-hpv` builds the chapter-13 HPV58
-workflow with 90 aligned genomes, eight named lineages, and pairwise nucleotide
-distance tracks.
-
-`make serve*` now means “open”: it reuses a healthy detached service or chooses
-a free port automatically and opens the browser. Users never need to select a
-port. The served report can write feedback and trigger reruns. `results/demo/report.html` is also self-contained and opens offline;
-offline mode stores feedback locally and exports `annotations.json`, but browser
-sandbox rules prevent direct filesystem write-back.
-
-## Run your own tree
-
-The user-facing path is automatic and opens the browser without a port:
-
-```bash
-ggtree-air auto \
-  --input data/tree.nwk \
-  --metadata data/groups.tsv \
-  --out results/gene-family
-```
-
-Use the lower-level `run` command only when exact layouts/intents must be pinned.
-
-For FASTA, add `--sequence-type auto|dna|rna|protein`; explicit typing avoids
-misclassifying unusual alphabets. Distance-matrix route:
-
-```bash
-node backend/bin/ggtree-air.mjs run \
-  --dist data/distance.tsv \
-  --layout rectangular,fan \
-  --out results/nj-tree
-```
-
-Other commands:
-
-```bash
-node backend/bin/ggtree-air.mjs check
-node backend/bin/ggtree-air.mjs status --workspace results/demo
-node backend/bin/ggtree-air.mjs rerun --workspace results/demo
-node backend/bin/ggtree-air.mjs help
-```
-
-## Canvas frontend
-
-The report adopts the useful interaction language of a content-first node
-canvas:
-
-- dotted infinite canvas with pan, zoom, fit, and draggable nodes;
-- only artifact and action nodes are visible: `artifact → user instruction → artifact`; input validation, routing, and scientific caveats stay in details rather than occupying the canvas;
-- every artifact card has a persistent **“基于此节点修改”** action; current artifacts create visible pending-action nodes, while historical artifacts automatically create a branch from that revision before editing;
-- each user feedback/natural-language request is an explicit intermediate workflow node, and every accepted rerun creates new downstream artifact nodes without replacing prior results;
-- light 16px node shells, quiet chrome, hover actions, blue selection;
-- result nodes switch between base/router/grouped variants;
-- a node-local one-sentence composer for ordinary edits; the right-side drawer is only for large preview and optional point/box/brush selection;
-- exact tip/internal-node hit targets derived from ggplot coordinate transforms;
-- one unified recommended figure for viewing and editing—the system projects semantic tip/clade coordinates directly onto the final annotated/heatmap artifact;
-- semantic tip/clade selection plus normalized rectangle selection and freehand drawing on that same figure;
-- intent inferred from plain-language instructions instead of a technical dropdown;
-- annotation import/export, local persistence, and backend save;
-- revision rerender from the same workspace.
-
-The upstream case catalog, pinned commits, checksums, and fetcher live in
-[`examples/treedata-book/`](examples/treedata-book/). The companion
-[TDbook](https://github.com/YuLab-SMU/TDbook) package is recorded as the data
-reference; tests do not require network access.
-
-The canvas is plain self-contained HTML/CSS/JavaScript generated by the Node
-backend; it does not import application code from the reference project.
-
-## Workspace contract
+在存放树和关联数据的目录里打开你习惯的 Agent（Pi、Claude Code、Codex、OpenCode 等），复制这一句话：
 
 ```text
-results/<name>/
-├── workspace.json             # Node-owned spec + current revision
-├── report.html                # self-contained node canvas
-├── report_manifest.json       # checksums and artifact inventory
-├── scene.json                 # tip/node/edge semantics + artifact coordinates
-├── annotations.json           # feedback for the current scene
-├── applied_annotations.json   # feedback consumed by this revision, if any
-├── feedback_status.json       # applied/deferred/skipped per feedback item
-├── revision_diff.json         # parent/current artifact and topology diff
-├── revision_score.json        # operational workflow scorecard
-├── run_metadata.json
-├── render_metadata.json
-├── tree_<layout>.png/.pdf
-├── tree.rds
-├── newick.tree.txt
-└── .ggtree-air/
-    └── revisions/r0001/...    # immutable prior revision artifacts
+使用 ggtree-air 内置的 ggtree-phylo skill，读取当前目录里的树和关联数据，生成并打开节点式工作流；随后保持等待画布中的 Action，逐条修改、预览并提交真实产物，直到我说满意。
 ```
 
-Feedback is hash-bound. After a rerun, current annotations reset to an empty
-envelope bound to the new artifacts; consumed feedback remains in
-`applied_annotations.json` and the archived revision.
+如果 Agent 没有自动加载 Skill，可以显式说：
 
-## Backend API
+```text
+/skill:ggtree-phylo 完成当前目录的系统发育树可视化，并持续处理画布反馈直到我满意。
+```
 
-The service binds only to `127.0.0.1`. Mutations require a per-process token
-injected only when serving `report.html`.
+**用户不需要选择端口、记命令、写 R、理解 ggtree API，或者管理 revision。**
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| `GET` | `/api/health` | service health |
-| `GET` | `/api/workspace` | current revision summary |
-| `GET` | `/api/scene` | complete semantic scene |
-| `GET` | `/api/objects` | bounded tip/clade/edge pagination and filtering |
-| `POST` | `/api/predicates/evaluate` | resolve group/label/descendant selectors without loading the full tree |
-| `GET/POST` | `/api/actions` | list or create raw user Action nodes |
-| `GET` | `/api/actions/:id` | read source, instruction, selection, status, and outputs |
-| `POST` | `/api/actions/:id/claim` | external Agent claims work |
-| `POST` | `/api/actions/:id/running` | external Agent reports execution start |
-| `POST` | `/api/actions/:id/progress` | stream phase/message/percent and optional preview |
-| `GET` | `/api/actions/:id/preview` | latest Agent candidate preview |
-| `POST` | `/api/actions/:id/complete` | commit one or more real output files |
-| `POST` | `/api/actions/:id/fail` | report an honest execution failure |
+---
 
-Every completed revision also writes `revision_diff.json` and
-`revision_score.json`. The score is explicitly operational—feedback resolution,
-artifact change, and topology preservation—not a biological quality claim.
+## 它是什么
 
-The server rejects path traversal, non-loopback binding, oversized bodies,
-stale selectors/hashes, and unauthenticated mutations.
+ggtree-air 是一个让人和 Agent 围绕科研图片协作的节点画布。
 
-## External Agent execution
+```text
+原始产物
+   ↓
+“配色太抢眼，缩小右侧色块”
+   ↓
+Agent 读取 Skill、数据、原图和选区
+   ↓
+新产物
+```
 
-The program stores the user's exact instruction and optional semantic/box/stroke
-selection without interpreting it. Any Agent can load the bundled
-`ggtree-phylo` Skill and consume the same neutral protocol:
+画布上只有两类内容：
+
+- **Artifact**：真实图片或文件；
+- **Action**：用户的原话和可选视觉选区。
+
+程序本身不内置模型，也不假装理解绘图需求。任何外部 Agent 都可以加载包内的标准 Skill，处理同一套 Action/Artifact 协议。
+
+## 用户如何使用
+
+### 1. 让 Agent 创建第一版
+
+你只需要描述目标：
+
+```text
+把这个目录里的树和 metadata 做成适合论文的图，自动选择合理布局并打开给我看。
+```
+
+Agent 会负责：
+
+- 找到 Newick/NEXUS/PhyloXML、距离矩阵或 FASTA；
+- 识别匹配的 metadata；
+- 调用 R/ggtree 生成第一版；
+- 打开浏览器节点画布；
+- 保持连接，等待你的下一条 Action。
+
+### 2. 在产物旁直接说怎么改
+
+点击产物节点的“修改”，输入一句话：
+
+```text
+配色柔和一点。
+色块太大，缩小一些。
+标签挤在一起了，重新安排间距。
+把这个 clade 突出，但不要遮住 support。
+```
+
+发送后会创建一个 Action 节点。正在等待的 Agent 会自动收到它。
+
+### 3. 需要时再标注
+
+普通修改只需要一句话。
+
+只有需要指出局部位置时才点击标注按钮：
+
+```text
+点选 | 框选 | 画笔
+```
+
+标注只是上下文附件；“怎么改”仍由自然语言表达。
+
+### 4. 明确要求多个候选
+
+默认一次 Action 只产生一个真正变化的产物。
+
+当你明确说：
+
+```text
+试三个不同风格的配色。
+分别给我一个保守版和一个展示版。
+比较有标签和无标签两种方案。
+```
+
+同一个 Action 可以连接多个候选 Artifact：
+
+```text
+Action
+ ├─ Candidate A
+ ├─ Candidate B
+ └─ Candidate C
+```
+
+### 5. 继续修改直到满意
+
+从任意候选产物继续输入要求即可自然形成分支。旧产物不会被覆盖。
+
+---
+
+## Agent 工作时用户能看到什么
+
+Action 节点会原地显示：
+
+- 哪个 Agent 接收了任务；
+- 当前阶段；
+- 人类可读的进度文字；
+- 进度条；
+- 最近的执行步骤；
+- 候选图片预览；
+- 完成、失败或等待状态。
+
+示例：
+
+```text
+正在检查源图和标注区域        15%
+正在调整配色和图例层级        45%
+已生成候选，正在检查重叠      75%
+已提交 2 个产物              100%
+```
+
+如果没有 Agent 正在连接，Action 会诚实显示“等待 Agent”，不会生成假的结果。
+
+---
+
+## 为什么任何 Agent 都能使用
+
+安装包直接包含：
+
+```text
+ggtree-air/
+├── skills/ggtree-phylo/   # 标准 Agent Skill
+├── frontend/              # 人机协作画布
+├── renderer/r/            # ggtree 科学绘图能力
+├── backend/               # 中立 Action/Artifact 协议
+└── examples/              # 可复现案例
+```
+
+Skill 使用普通文件和 CLI 协议，不绑定特定模型厂商或 Agent SDK。
+
+支持 Skill 自动发现的 Agent 可以直接加载包内 Skill；其他 Agent 可以获取 Skill 路径或安装到自己的 Skill 目录。
+
+---
+
+## 内置真实案例
+
+案例数据来自固定 commit，并校验 SHA-256：
+
+- **mammal-traits**：营养类型、体重和关联数据；
+- **candida-auris**：抗真菌耐药和靶点突变；
+- **hmp-microbiome**：334 tips、14 phyla、7 个身体部位轨道；
+- **hpv58**：90 个完整基因组、8 个 lineage 和序列距离。
+
+你可以直接对 Agent 说：
+
+```text
+用 hmp-microbiome 案例创建工作流并打开给我看，然后继续等待我的修改。
+```
+
+---
+
+## 安装
+
+当前开发版本可以从源码安装：
 
 ```bash
+npm install -g ./dist/ggtree-air-0.5.0.tgz
+ggtree-air setup-r --with-recipes
+ggtree-air skills install ggtree-phylo --agent pi --force
+```
+
+公开 npm/GitHub Release 的分发说明见 [`docs/DISTRIBUTION.md`](docs/DISTRIBUTION.md)。
+
+---
+
+<details>
+<summary><strong>给 Agent 和集成开发者的协议入口</strong></summary>
+
+### 创建并打开工作区
+
+```bash
+ggtree-air auto --input tree.nwk --metadata traits.csv --out results/tree
+ggtree-air open --workspace results/tree
+```
+
+### 打开前端后保持等待
+
+Agent 不应结束回合并要求用户回来手动通知，而应阻塞等待浏览器 Action：
+
+```bash
+ggtree-air actions wait \
+  --workspace results/tree \
+  --agent my-agent \
+  --timeout 3600
+```
+
+浏览器提交后，命令立即返回并原子 claim 该 Action。
+
+### 流式进度
+
+```bash
+ggtree-air actions running <id> --workspace results/tree --agent my-agent
+
+ggtree-air actions progress <id> \
+  --workspace results/tree \
+  --agent my-agent \
+  --phase preview \
+  --percent 75 \
+  --message "候选已生成，正在检查标签重叠" \
+  --preview candidate.png
+```
+
+### 提交一个或多个真实产物
+
+```bash
+ggtree-air artifacts commit <id> \
+  --workspace results/tree \
+  --agent my-agent \
+  --file candidate-a.png \
+  --file candidate-b.png
+```
+
+### 失败时诚实返回
+
+```bash
+ggtree-air actions fail <id> \
+  --workspace results/tree \
+  --message "无法从现有数据支持该修改"
+```
+
+### Skill
+
+```bash
+ggtree-air skills list
 ggtree-air skills path
-# Keep the Agent turn attached; returns and claims when the browser submits
-ggtree-air actions wait --workspace results/demo --agent my-agent --timeout 3600
-
-# Manual reconnect path
-ggtree-air actions next --workspace results/demo
-ggtree-air actions claim <id> --workspace results/demo --agent my-agent
-ggtree-air actions running <id> --workspace results/demo --agent my-agent
-# Agent reads data, edits/runs R, evaluates real images
-ggtree-air artifacts commit <id> --workspace results/demo \
-  --agent my-agent --file candidate-a.png --file candidate-b.png
+ggtree-air skills install ggtree-phylo --agent pi --force
 ```
 
-One Action may commit one or many Artifact nodes. With no connected Agent, the
-Action remains honestly labeled “等待 Agent”; the program never pretends to
-understand or execute the biological/visual request.
+Action/API Schema 位于 [`docs/schemas/`](docs/schemas/)。
 
-## Distribution
+</details>
 
-Build and smoke-install runtime + skill archives:
+---
 
-```bash
-npm run pack:smoke
-```
+## 科学边界
 
-Container, npm, GitHub Release/GHCR, compatibility, and the remaining public
-release blockers are documented in [`docs/DISTRIBUTION.md`](docs/DISTRIBUTION.md).
-Public npm publication is intentionally blocked until repository ownership and
-license are confirmed.
+- NJ 默认是无根树，除非有明确 outgroup；
+- branch length 代表输入距离，而不自动代表时间；
+- 配色和 clade 标签是注释，不是统计证据；
+- 有 bootstrap/posterior 时应展示支持度；
+- topology 改变后必须重新验证 node id；
+- FASTA/多序列比对质量决定下游树的可信度。
 
-## Project layout
+详细说明见 [`skills/ggtree-phylo/references/interpretation-guide.md`](skills/ggtree-phylo/references/interpretation-guide.md)。
 
-```text
-backend/
-  bin/ggtree-air.mjs           # executable
-  src/                         # Node orchestration, API, contracts, revisions
-  test/                        # Node contract + full closed-loop tests
-renderer/r/
-  worker.R                     # isolated JSON worker entry
-  R/                           # scientific input/analysis/render/scene modules
-  fixtures/                    # renderer-owned test data
-  tests/
-frontend/
-  report.html
-  styles.css
-  app.js
-skills/
-  ggtree-phylo/
-    SKILL.md                   # canonical Agent Skills package
-    scripts/run_backend.sh     # thin adapter to the Node executable
-  references/
-docs/schemas/
-```
+## 开发状态
 
-## Verification
-
-```bash
-make test
-npm run syntax
-```
-
-The test suite covers:
-
-- run-spec and annotation contract validation;
-- stale scene/artifact rejection;
-- isolated R rendering and projected scene coordinates;
-- Node → R worker execution;
-- HTTP feedback persistence with mutation token;
-- feedback rerender to revision 2;
-- archival of revision 1 and reset of the new annotation envelope.
-
-## Scientific guardrails
-
-- NJ output is unrooted unless an outgroup is explicitly supplied.
-- Branch length means the input distance metric, not automatically time.
-- Color and labels are annotations, not evidence.
-- Support should be shown whenever available.
-- Node ids are topology-specific and must be revalidated after topology changes.
-- MSA quality gates every downstream topology claim.
-
-See [`skills/ggtree-phylo/references/interpretation-guide.md`](skills/ggtree-phylo/references/interpretation-guide.md).
+- 当前版本：`v0.5.0`
+- 测试：Node、R、Playwright 全部通过
+- npm audit：0 vulnerabilities
+- 状态与边界：[`docs/STATUS.md`](docs/STATUS.md)
+- 分发：[`docs/DISTRIBUTION.md`](docs/DISTRIBUTION.md)
