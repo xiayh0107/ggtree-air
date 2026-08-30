@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdtemp, readdir, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
@@ -25,6 +25,12 @@ try {
   const binary = path.join(prefix, 'node_modules', '.bin', 'ggtree-air')
   await run(binary, ['--help'], { cwd: prefix })
   await run(binary, ['check'], { cwd: prefix })
+  const workspace = path.join(prefix, 'workspace')
+  await run(binary, ['workspace', 'create', '--out', workspace, '--title', 'package smoke'], { cwd: prefix })
+  const report = await readFile(path.join(workspace, 'report.html'), 'utf8')
+  if (!report.includes('window.__GGTREE_AIR_PAYLOAD__') || !report.includes('react-flow')) {
+    throw new Error('installed package did not generate the compiled React canvas report')
+  }
   console.log('installed-package smoke test passed')
 } finally {
   await rm(prefix, { recursive: true, force: true })

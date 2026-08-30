@@ -153,7 +153,7 @@ Action 节点会原地显示：
 ```text
 ggtree-air/
 ├── skills/ggtree-phylo/   # 标准 Agent Skill
-├── frontend/              # 人机协作画布
+├── frontend/              # React + TypeScript + React Flow 人机协作画布
 ├── renderer/r/            # ggtree 科学绘图能力
 ├── backend/               # 中立 Action/Artifact 协议
 └── examples/              # 可复现案例

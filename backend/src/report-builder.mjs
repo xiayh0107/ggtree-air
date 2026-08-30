@@ -96,9 +96,9 @@ export async function buildReport({
   outputDir, workspaceRoot, workspace, annotations, pendingPlanOverride = undefined,
 }) {
   const [template, styles, app] = await Promise.all([
-    readFile(path.join(FRONTEND_ROOT, 'report.html'), 'utf8'),
-    readFile(path.join(FRONTEND_ROOT, 'styles.css'), 'utf8'),
-    readFile(path.join(FRONTEND_ROOT, 'app.js'), 'utf8'),
+    readFile(path.join(FRONTEND_ROOT, 'report-shell.html'), 'utf8'),
+    readFile(path.join(FRONTEND_ROOT, 'dist', 'styles.css'), 'utf8'),
+    readFile(path.join(FRONTEND_ROOT, 'dist', 'app.js'), 'utf8'),
   ])
   const revisions = []
   const revisionIds = Object.keys(workspace.revisions || { [workspace.revision]: {} })
@@ -153,10 +153,10 @@ export async function buildReport({
     caveats: caveats(currentRevision.run_metadata),
   }
   const html = template
-    .replaceAll('__TITLE__', htmlEscape(workspace.spec.title))
-    .replace('__STYLE__', styles)
-    .replace('__PAYLOAD__', jsonForScript(payload))
-    .replace('__APP__', app)
+    .replace('GGTREE_AIR_DOCUMENT_TITLE', () => htmlEscape(workspace.spec.title))
+    .replace('/* GGTREE_AIR_COMPILED_STYLES */', () => styles)
+    .replace('GGTREE_AIR_PAYLOAD_JSON', () => jsonForScript(payload))
+    .replace('/* GGTREE_AIR_COMPILED_APP */', () => app.replace(/<\/script/giu, '<\\/script'))
   const reportPath = path.join(outputDir, 'report.html')
   await atomicWriteFile(reportPath, html)
   return { reportPath, payload }

@@ -24,15 +24,23 @@ function run(command, args, options = {}) {
   })
 }
 
-const packed = await run('npm', ['pack', '--json', '--pack-destination', dist])
-const result = JSON.parse(packed.stdout)[0]
+await run('npm', ['run', 'build:frontend'])
+const packed = await run('npm', [
+  'pack', '--json', '--ignore-scripts', '--silent', '--pack-destination', dist,
+], {
+  env: { ...process.env, npm_config_ignore_scripts: 'true' },
+})
+const jsonStart = Math.max(packed.stdout.lastIndexOf('\n[') + 1, packed.stdout.indexOf('['))
+const result = JSON.parse(packed.stdout.slice(jsonStart))[0]
 const runtimeTarball = path.join(dist, result.filename)
 const listing = (await run('tar', ['-tzf', runtimeTarball])).stdout.split('\n').filter(Boolean)
 const forbidden = listing.filter((entry) => /(?:\/test\/|\.test\.mjs$|Rplots\.pdf$|^package\/skill\/)/.test(entry))
 if (forbidden.length) throw new Error(`Runtime package contains forbidden development files:\n${forbidden.join('\n')}`)
 for (const required of [
   'package/backend/bin/ggtree-air.mjs',
-  'package/frontend/app.js',
+  'package/frontend/dist/app.js',
+  'package/frontend/dist/styles.css',
+  'package/frontend/report-shell.html',
   'package/renderer/r/worker.R',
   'package/renderer/r/install-dependencies.R',
   'package/examples/treedata-book/workflows.json',

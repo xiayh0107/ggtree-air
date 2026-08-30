@@ -12,6 +12,7 @@ examples/treedata-book/data/
 
 # Distribution output
 /dist/
+/frontend/dist/
 
 # Node
 node_modules/

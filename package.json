@@ -14,9 +14,8 @@
   "files": [
     "backend/bin/",
     "backend/src/",
-    "frontend/app.js",
-    "frontend/report.html",
-    "frontend/styles.css",
+    "frontend/dist/",
+    "frontend/report-shell.html",
     "renderer/r/R/",
     "renderer/r/worker.R",
     "renderer/r/install-dependencies.R",
@@ -39,7 +38,9 @@
     "ggtree-air": "backend/bin/ggtree-air.mjs"
   },
   "pi": {
-    "skills": ["skills/ggtree-phylo"]
+    "skills": [
+      "skills/ggtree-phylo"
+    ]
   },
   "engines": {
     "node": ">=20",
@@ -51,14 +52,29 @@
     "fixture:rich": "node examples/treedata-book/fetch.mjs candida-auris && node backend/bin/ggtree-air.mjs run --tree examples/treedata-book/data/candida-auris-tree.nwk --metadata examples/treedata-book/data/candida-auris-metadata.csv --tip-column ID --group-column CLADE --heatmap-columns FCZ,AMB,MCF,ERG11,FKS1 --layout fan,rectangular --intent tipcolor,heatmap,treescale --tip-labels hide --format png --width 12 --height 10 --dpi 120 --title 'Candida auris renderer fixture' --out results/candida-auris --force",
     "fixture:hmp": "node examples/treedata-book/fetch.mjs hmp-microbiome && node examples/treedata-book/prepare-hmp.mjs && node backend/bin/ggtree-air.mjs run --tree examples/treedata-book/data/hmp-tree.nwk --repair-tip-labels --metadata examples/treedata-book/data/hmp-metadata-wide.csv --tip-column ID --group-column Phylum --size-column Size --shape-column Type --heatmap-columns Stool,Cheek,Plaque,Tongue,Nose,Vagina,Skin --layout fan,rectangular --intent tipcolor,heatmap,treescale --tip-labels hide --format png --width 12 --height 10 --dpi 120 --title 'Human microbiome renderer fixture' --out results/hmp-microbiome --force",
     "serve": "node backend/bin/ggtree-air.mjs open --workspace results/fixture",
-    "test": "node --test backend/test/*.test.mjs && node --test frontend/*.test.mjs && Rscript renderer/r/tests/testthat.R",
-    "test:ui": "node --test frontend/*.test.mjs",
-    "syntax": "node --check backend/src/cli.mjs && node --check backend/src/server.mjs && node --check frontend/app.js",
+    "dev:frontend": "vite",
+    "typecheck": "tsc --noEmit",
+    "build:frontend": "npm run typecheck && vite build",
+    "test": "npm run build:frontend && node --test backend/test/*.test.mjs && node --test frontend/*.test.mjs && Rscript renderer/r/tests/testthat.R",
+    "test:ui": "npm run build:frontend && node --test frontend/*.test.mjs",
+    "syntax": "node --check backend/src/cli.mjs && node --check backend/src/server.mjs && npm run typecheck",
+    "prepare": "npm run build:frontend",
+    "prepack": "npm run build:frontend",
     "pack:runtime": "node scripts/package-runtime.mjs",
     "pack:smoke": "node scripts/smoke-package.mjs",
     "prepublishOnly": "npm test && npm run pack:smoke"
   },
   "devDependencies": {
-    "playwright": "1.55.1"
+    "@types/node": "24.13.3",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "5.1.2",
+    "@xyflow/react": "12.11.5",
+    "lucide-react": "1.37.0",
+    "playwright": "1.55.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "typescript": "5.9.3",
+    "vite": "7.3.6"
   }
 }

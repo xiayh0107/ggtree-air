@@ -1,9 +1,9 @@
 # Frontend design baseline
 
 The report is a scientific node-based workflow, not a dashboard skin. Its visual
-language is informed by the reference node canvas and by the useful principles
-behind modern component galleries, without copying their code or introducing a
-runtime UI dependency.
+language is informed by the reference node canvas. The implementation uses
+React 19, TypeScript, and `@xyflow/react`; the compiled bundle is inlined into
+the standalone report so users do not need a separate frontend server.
 
 ## Applied principles
 
@@ -31,5 +31,7 @@ runtime UI dependency.
   the right drawer is reserved for large preview and optional visual selection.
 - Every visible status comes from workspace/renderer data.
 - Tip/clade markers come from `scene.json`, never from DOM or pixel guessing.
+- Shift-click and Shift-marquee create a temporary multi-selection; selected
+  nodes move together and feed one Agent Task without creating a persistent group.
 - Mutations remain usable by keyboard and expose labels/titles.
 - Offline mode must be honest about browser write restrictions.

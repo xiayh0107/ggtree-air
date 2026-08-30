@@ -26,6 +26,8 @@ test('artifact-first workspace starts with real inputs and no pre-rendered tree 
     const report = await readFile(path.join(root, 'report.html'), 'utf8')
     assert.match(report, /input-only task/)
     assert.match(report, /\(a:1,b:1\)/)
+    assert.equal((report.match(/<!doctype html>/g) || []).length, 1)
+    assert.equal(report.includes('GGTREE_AIR_COMPILED_APP'), false)
   } finally {
     await rm(parent, { recursive: true, force: true })
   }
