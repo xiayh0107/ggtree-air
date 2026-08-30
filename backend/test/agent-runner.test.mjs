@@ -27,6 +27,8 @@ test('a node Action is completed only by a real external Agent process committin
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
+if (process.argv.includes('--version')) { console.log('pi 1.0.0'); process.exit(0) }
+if (process.argv[2] === 'auth') { console.log(JSON.stringify({ status: 'ready' })); process.exit(0) }
 const output = path.join(process.env.GGTREE_AIR_OUTPUT_DIR, 'agent-output.txt')
 console.log(JSON.stringify({ type: 'tool_execution_start', toolName: 'write', args: { path: output } }))
 mkdirSync(path.dirname(output), { recursive: true })
@@ -43,7 +45,10 @@ process.exit(result.status ?? 1)
     await chmod(fakePi, 0o755)
 
     const runner = new LocalAgentRunner({
-      root, adapter: 'pi', piCommand: fakePi, onLog: () => undefined,
+      root, adapter: 'pi', piCommand: fakePi,
+      codexCommand: path.join(parent, 'missing-codex'),
+      claudeCommand: path.join(parent, 'missing-claude'),
+      onLog: () => undefined,
       onRefresh: () => refreshWorkspacePresentation(root),
     })
     const completed = await runner.start(action.id)

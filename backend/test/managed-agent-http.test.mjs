@@ -21,6 +21,8 @@ test('posting a node Action launches the configured Agent CLI and materializes i
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
+if (process.argv.includes('--version')) { console.log('pi 1.0.0'); process.exit(0) }
+if (process.argv[2] === 'auth') { console.log(JSON.stringify({ status: 'ready' })); process.exit(0) }
 const output = path.join(process.env.GGTREE_AIR_OUTPUT_DIR, 'result.txt')
 console.log(JSON.stringify({ type: 'tool_execution_start', toolName: 'write', args: { path: output } }))
 mkdirSync(path.dirname(output), { recursive: true })
@@ -34,7 +36,10 @@ process.exit(child.status ?? 1)
 `)
     await chmod(fakePi, 0o755)
     service = await startWorkspaceServer({
-      root, port: 0, agentAdapter: 'pi', agentCommand: fakePi, onLog: () => undefined,
+      root, port: 0, agentAdapter: 'pi', agentCommand: fakePi,
+      codexCommand: path.join(parent, 'missing-codex'),
+      claudeCommand: path.join(parent, 'missing-claude'),
+      onLog: () => undefined,
     })
     const createdResponse = await fetch(`${service.url}/api/actions`, {
       method: 'POST',

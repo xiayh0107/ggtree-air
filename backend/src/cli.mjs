@@ -33,9 +33,9 @@ Usage:
   ggtree-air artifacts commit ACTION --workspace WORKSPACE --file OUTPUT [--file OUTPUT]
   ggtree-air run --dist MATRIX --out WORKSPACE [options]
   ggtree-air run --tree TREE --out WORKSPACE [options]
-  ggtree-air open --workspace WORKSPACE [--no-browser]
+  ggtree-air open --workspace WORKSPACE [--agent auto|pi|codex|claude|none] [--no-browser]
   ggtree-air service status|stop --workspace WORKSPACE
-  ggtree-air serve --workspace WORKSPACE [--port 0]
+  ggtree-air serve --workspace WORKSPACE [--port 0] [--agent auto|pi|codex|claude|none]
   ggtree-air refresh --workspace WORKSPACE
 
 Run input (exactly one):
@@ -71,6 +71,7 @@ Run options:
 
 Serve options:
   --workspace PATH        generated workspace
+  --agent ADAPTER         auto, pi, codex, claude, or none (default auto)
   --host 127.0.0.1        loopback only
   --port NUMBER           default 0 (automatically chooses a free port)
 `)
@@ -414,10 +415,11 @@ async function run(tokens) {
 
 async function openWorkspace(tokens) {
   const options = parseArgs(tokens, new Set(['no_browser']))
-  assertKnownOptions(options, ['workspace', 'no_browser'])
+  assertKnownOptions(options, ['workspace', 'agent', 'no_browser'])
   if (!options.workspace) throw new Error('--workspace is required')
   const state = await openWorkspaceService(path.resolve(options.workspace), {
     browser: !options.no_browser,
+    agent: options.agent || 'auto',
   })
   console.log(JSON.stringify(state, null, 2))
   return 0
@@ -442,12 +444,13 @@ async function service(tokens) {
 
 async function serve(tokens) {
   const options = parseArgs(tokens)
-  assertKnownOptions(options, ['workspace', 'host', 'port'])
+  assertKnownOptions(options, ['workspace', 'host', 'port', 'agent'])
   if (!options.workspace) throw new Error('--workspace is required')
   const service = await startWorkspaceServer({
     root: path.resolve(options.workspace),
     host: options.host || '127.0.0.1',
     port: options.port == null ? 0 : Number(options.port),
+    agentAdapter: options.agent || 'auto',
     onLog: (chunk) => process.stderr.write(chunk),
   })
   await registerService(path.resolve(options.workspace), service)

@@ -1531,7 +1531,7 @@
   connection.classList.toggle('live', liveApi)
   if (liveApi) {
     apiFetch('/api/agents').then((response) => {
-      const available = (response.agents || []).some((agent) => agent.available)
+      const available = Boolean(response.selected_agent)
       connection.textContent = available ? 'Agent 已连接' : 'Agent 未连接'
       connection.classList.toggle('live', available)
     }).catch(() => {

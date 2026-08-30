@@ -45,6 +45,7 @@ export async function registerService(root, service) {
     port: service.port,
     started: isoNow(),
     version: '0.5.0',
+    agent_adapter: service.agentAdapter || 'auto',
   })
   return target
 }
@@ -66,9 +67,13 @@ function launchBrowser(url) {
   child.unref()
 }
 
-export async function openWorkspaceService(root, { browser = true } = {}) {
+export async function openWorkspaceService(root, { browser = true, agent = 'auto' } = {}) {
   root = path.resolve(root)
-  const current = await readServiceState(root)
+  let current = await readServiceState(root)
+  if (current?.status === 'running' && agent !== 'auto' && current.agent_adapter !== agent) {
+    await stopWorkspaceService(root)
+    current = null
+  }
   if (current?.status === 'running') {
     if (browser) launchBrowser(current.url)
     return current
@@ -77,7 +82,9 @@ export async function openWorkspaceService(root, { browser = true } = {}) {
   await rm(statePath(root), { force: true })
   const logPath = path.join(root, '.ggtree-air', 'service.log')
   const log = openSync(logPath, 'a')
-  const child = spawn(process.execPath, [CLI_PATH, 'serve', '--workspace', root, '--port', '0'], {
+  const child = spawn(process.execPath, [
+    CLI_PATH, 'serve', '--workspace', root, '--port', '0', '--agent', agent,
+  ], {
     cwd: root,
     detached: true,
     stdio: ['ignore', log, log],

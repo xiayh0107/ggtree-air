@@ -30,6 +30,7 @@
     "docs/schemas/",
     "docs/agent-setup.md",
     "docs/AGENT_RUNTIME.md",
+    "docs/AGENT_BRIDGE.md",
     "skills/",
     "README.md"
   ],

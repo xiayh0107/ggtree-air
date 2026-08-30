@@ -16,7 +16,7 @@ Artifact → raw user Action → external Agent using bundled Skill → 1..N Art
 - [x] `ggtree-air skills path|install` exposes the Skill to Pi, Claude, Codex, or another Agent.
 - [x] Browser creates Action nodes containing exact user language and optional semantic/box/stroke selection.
 - [x] Program does not interpret or execute the biological/visual instruction.
-- [x] Node prompts launch a real installed Agent CLI through `LocalAgentRunner`; external Agents can also attach through the stable CLI/API.
+- [x] Node prompts launch a real installed Agent CLI through the provider-neutral Agent Bridge; managed adapters cover Pi, Codex CLI, and Claude Code, while other Agents can attach through the stable CLI/API.
 - [x] One Action can commit one or many real files; one file becomes one Artifact node.
 - [x] Pending/claimed/running/completed/failed states are visible in the canvas.
 - [x] Node-local composer is the default interaction; the right drawer is only for preview and visual selection.
@@ -41,7 +41,7 @@ Artifact → raw user Action → external Agent using bundled Skill → 1..N Art
 ## Deliberate boundaries
 
 - No embedded model loop and no program-owned natural-language planner in the primary Action path.
-- Managed mode launches the user's installed Agent CLI; `GGTREE_AIR_AGENT=none` leaves Actions pending for an externally attached Agent.
+- Managed mode launches the selected installed Agent CLI (`auto|pi|codex|claude`); `GGTREE_AIR_AGENT=none` leaves Actions pending for an externally attached Agent.
 - No packaged Demo may create, claim, complete, or copy output into an Action.
 - Scientific and visual decisions belong to the Agent and bundled Skill.
 - The local service is for one trusted local workspace, not multi-user internet deployment.

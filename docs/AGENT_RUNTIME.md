@@ -36,10 +36,10 @@ claimed/running Action ── real Agent tool calls ──> run files/
 immutable output Artifact node(s)
 ```
 
-The managed Pi adapter is a transport, not an embedded model loop. It launches
-the user's installed and authenticated `pi` executable with the bundled
-`ggtree-phylo` Skill. The application does not interpret the natural-language
-request.
+Managed adapters are transports, not embedded model loops. The Agent Bridge can
+launch the user's installed Pi, Codex CLI, or Claude Code process. Every adapter
+receives the same Action sources, exact prompt, output boundary, Skill path, and
+commit protocol. The application does not interpret the natural-language request.
 
 ## Workspace bootstrap
 
@@ -60,11 +60,13 @@ integration fixtures and are not user-facing Agent histories.
 ### Managed local Agent
 
 Default for a workspace service. `POST /api/actions` creates the durable Action,
-then `LocalAgentRunner` spawns the local Pi CLI. The Agent receives exact source
-artifact identities, the user's prompt, the Skill, an isolated output directory,
-and the commit protocol.
+then `LocalAgentRunner` resolves a provider through the Agent Bridge registry and
+spawns Pi, Codex CLI, or Claude Code. The Agent receives exact source artifact
+identities, the user's prompt, the Skill, an isolated output directory, and the
+commit protocol.
 
-`GET /api/agents` reports whether the configured adapter is actually available.
+`GET /api/agents` reports all adapter probes and the selected provider. Use
+`ggtree-air open --agent pi|codex|claude|auto` to choose.
 `GET /api/actions/:id/log` returns parsed real tool-call activity.
 
 ### External Agent
@@ -82,7 +84,7 @@ ggtree-air actions wait --workspace results/task --agent my-agent --timeout 3600
 ```
 
 This preserves the Agent-independent protocol without creating a second fake
-execution path.
+execution path. Adapter details are specified in `docs/AGENT_BRIDGE.md`.
 
 ## Run storage
 

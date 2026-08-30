@@ -99,15 +99,19 @@ Renderer recipes 只用于集成测试，不得包装成用户—Agent 历史。
 
 ## 5. 打开画布，不让用户管理端口
 
+选择与你当前执行环境一致的托管 adapter：
+
 ```bash
-ggtree-air open --workspace <workspace>
+ggtree-air open --workspace <workspace> --agent pi
+ggtree-air open --workspace <workspace> --agent codex
+ggtree-air open --workspace <workspace> --agent claude
 ```
 
-`open` 会复用健康服务或选择空闲端口，并自动打开浏览器。只向用户报告“画布已打开”和必要的科学说明，不要求用户复制 URL 或选择端口。
+不能判断时使用 `--agent auto`；它会探测安装、认证和 CLI 兼容性。`open` 会复用同一 adapter 的健康服务或选择空闲端口，并自动打开浏览器。只向用户报告“画布已打开”和必要的科学说明，不要求用户复制 URL 或选择端口。
 
 ## 6. 让真实 Agent 响应浏览器 Action
 
-默认 managed 模式会在用户提交节点指令后启动本机已安装的 Pi Agent CLI，不需要外层 Agent 再执行 `actions wait`。通过 `GET /api/agents` 或画布连接状态确认 Agent 可用。
+默认 managed 模式会在用户提交节点指令后启动选定的 Pi、Codex CLI 或 Claude Code，不需要外层 Agent 再执行 `actions wait`。通过 `GET /api/agents` 确认全部 adapter 的安装、认证、兼容性以及当前选择。
 
 如果明确使用 `GGTREE_AIR_AGENT=none` 启动服务，则由外层 Agent 保持等待：
 

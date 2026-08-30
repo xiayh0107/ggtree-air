@@ -79,7 +79,10 @@ async function serveFile(response, target, token, injectToken = false) {
 export async function startWorkspaceServer({
   root, host = '127.0.0.1', port = 0, onLog = console.error,
   agentAdapter = process.env.GGTREE_AIR_AGENT || 'auto',
-  agentCommand = process.env.GGTREE_AIR_PI_COMMAND || 'pi',
+  agentCommand = null,
+  piCommand = agentCommand || process.env.GGTREE_AIR_PI_COMMAND || 'pi',
+  codexCommand = process.env.GGTREE_AIR_CODEX_COMMAND || 'codex',
+  claudeCommand = process.env.GGTREE_AIR_CLAUDE_COMMAND || 'claude',
 }) {
   const allowContainerBind = process.env.GGTREE_AIR_ALLOW_NON_LOOPBACK === '1'
   if (host !== '127.0.0.1' && !(allowContainerBind && host === '0.0.0.0')) {
@@ -94,7 +97,9 @@ export async function startWorkspaceServer({
   const agentRunner = new LocalAgentRunner({
     root, onLog,
     adapter: agentAdapter,
-    piCommand: agentCommand,
+    piCommand,
+    codexCommand,
+    claudeCommand,
     onRefresh: () => refreshWorkspacePresentation(root),
   })
   let rerunActive = false
@@ -110,8 +115,10 @@ export async function startWorkspaceServer({
         return
       }
       if (request.method === 'GET' && url.pathname === '/api/agents') {
+        const selected = await agentRunner.inspect()
         jsonResponse(response, 200, {
-          agents: [{ ...(await agentRunner.inspect()), active_actions: agentRunner.activeActionIds() }],
+          selected_agent: selected.available ? selected.id : null,
+          agents: await agentRunner.listAgents(),
         })
         return
       }
@@ -354,5 +361,6 @@ export async function startWorkspaceServer({
     host,
     port: typeof address === 'object' ? address.port : port,
     url: `http://${host}:${typeof address === 'object' ? address.port : port}`,
+    agentAdapter,
   }
 }

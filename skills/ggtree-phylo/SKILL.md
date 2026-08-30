@@ -31,10 +31,10 @@ Never ask the program to interpret natural language. Do not use legacy
 
 ## Transport modes
 
-A browser node Action is normally assigned to a real local Agent CLI by the
-workspace service. In that managed mode the Action is already claimed and
-running when this Skill loads; inspect it and execute it directly. Do not claim
-it a second time.
+A browser node Action is normally assigned through the Agent Bridge to a real
+local Pi, Codex CLI, or Claude Code process. In that managed mode the Action is
+already claimed and running when this Skill loads; inspect it and execute it
+directly. Do not claim it a second time.
 
 An outer Agent may instead start the service with `GGTREE_AIR_AGENT=none`. In
 that explicit external mode, stay attached by blocking for the next Action:
@@ -162,7 +162,7 @@ ggtree-air workspace create --out results/<name> --title "<task>"
 ggtree-air artifacts import --workspace results/<name> --file reference.png --role reference
 ggtree-air artifacts import --workspace results/<name> \
   --file tree.nwk --file metadata.csv --role user-input
-ggtree-air open --workspace results/<name>
+ggtree-air open --workspace results/<name> --agent <pi|codex|claude|auto>
 ```
 
 Renderer recipes remain test fixtures only. They are not user-story Demos and

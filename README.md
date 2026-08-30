@@ -178,6 +178,18 @@ ggtree-air open --workspace results/my-task
 
 画布最初只显示这些真实输入，不生成多余的 rectangular/fan 结果。用户在节点旁输入要求并勾选上下文资源后，平台才创建 Action、启动本机 Agent CLI、记录真实工具调用，并在 Agent 提交经过校验的文件后创建输出节点。运行边界与防造假约束见 [`docs/AGENT_RUNTIME.md`](docs/AGENT_RUNTIME.md)。
 
+### 通用 Agent Bridge
+
+托管模式支持 Pi、Codex CLI 和 Claude Code：
+
+```bash
+ggtree-air open --workspace results/my-task --agent auto
+ggtree-air open --workspace results/my-task --agent codex
+ggtree-air open --workspace results/my-task --agent claude
+```
+
+`auto` 会探测安装、登录状态和 CLI 兼容性，并按 `pi,codex,claude` 顺序选择第一个可用 Agent。设置 `--agent none` 后，任意其他 Agent 仍可通过 `actions wait` 接入同一协议。Bridge 的 adapter/registry 设计见 [`docs/AGENT_BRIDGE.md`](docs/AGENT_BRIDGE.md)。
+
 ---
 
 ## 安装
