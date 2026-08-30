@@ -136,7 +136,7 @@ function sourceNodeId(source: ActionSource, nodes: Map<string, CanvasFlowNode>):
 
 export function loadSavedPositions(workspaceId: string, nodes: CanvasFlowNode[]): CanvasFlowNode[] {
   try {
-    const value = JSON.parse(localStorage.getItem(`ggtree-air:${workspaceId}:workflow-layout`) || '{}')
+    const value = JSON.parse(localStorage.getItem(`ggtree-air:${workspaceId}:react-flow-layout-v1`) || '{}')
     return nodes.map((node) => Number.isFinite(value[node.id]?.x) && Number.isFinite(value[node.id]?.y)
       ? { ...node, position: { x: value[node.id].x, y: value[node.id].y } }
       : node)
@@ -147,7 +147,7 @@ export function loadSavedPositions(workspaceId: string, nodes: CanvasFlowNode[])
 
 export function savePositions(workspaceId: string, nodes: CanvasFlowNode[]) {
   try {
-    localStorage.setItem(`ggtree-air:${workspaceId}:workflow-layout`, JSON.stringify(Object.fromEntries(
+    localStorage.setItem(`ggtree-air:${workspaceId}:react-flow-layout-v1`, JSON.stringify(Object.fromEntries(
       nodes.map((node) => [node.id, node.position]),
     )))
   } catch { /* storage is optional */ }

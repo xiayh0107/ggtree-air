@@ -1,16 +1,17 @@
-import { useEffect, useMemo, useState, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } from 'react'
 import { ArrowUp, Brush, X } from 'lucide-react'
 import { apiFetch } from '../api'
 import type { CanvasFlowNode } from '../graph'
 import type { ActionRecord, ActionSource, Payload, SelectionValue } from '../types'
 
 export function Composer({
-  nodeIds, nodes, payload, selection, onSelectionClear, onClose, onSubmitted, onAnnotate,
+  nodeIds, nodes, payload, selection, style, onSelectionClear, onClose, onSubmitted, onAnnotate,
 }: {
   nodeIds: string[]
   nodes: CanvasFlowNode[]
   payload: Payload
   selection: SelectionValue | null
+  style?: CSSProperties
   onSelectionClear: () => void
   onClose: () => void
   onSubmitted: (action: ActionRecord) => void
@@ -68,7 +69,7 @@ export function Composer({
   }
 
   return (
-    <section id="node-composer" className="node-composer" data-no-drag>
+    <section id="node-composer" className="node-composer" style={style} data-no-drag>
       <header className="composer-header">
         <div><strong>新建 Agent 任务</strong><small>来源 · {sourceTitle}</small></div>
         <button data-composer-close aria-label="关闭" onClick={onClose}><X size={13} /></button>

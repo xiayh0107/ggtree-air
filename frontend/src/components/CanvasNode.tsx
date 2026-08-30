@@ -11,6 +11,7 @@ interface CanvasNodeRef { id: string; data: CanvasNodeData }
 
 interface CanvasCallbacks {
   hasActions: boolean
+  selectedCount: number
   onOpen: (node: CanvasNodeRef) => void
   onTask: (nodeIds: string[]) => void
   onFullscreen: (node: CanvasNodeRef) => void
@@ -53,7 +54,8 @@ function NodeShell({
   const active = action && ['pending', 'claimed', 'running'].includes(action.status)
   const failed = action?.status === 'failed'
   const inputArtifact = artifact && ['reference', 'paper-reference', 'user-input'].includes(artifact.role)
-  const showStart = inputArtifact && !callbacks.hasActions
+  const compoundMember = selected && callbacks.selectedCount > 1 && !fullscreen
+  const showStart = inputArtifact && !callbacks.hasActions && !compoundMember
   const Icon = iconForData(data)
   const status = statusForData(data)
   const statusTone = failed ? 'danger' : active ? 'active'
@@ -62,7 +64,7 @@ function NodeShell({
   return (
     <article
       data-node-id={node.id}
-      className={`canvas-node ${selected ? 'selected' : ''} ${fullscreen ? 'node-maximized' : ''} ${data.kind}-node`}
+      className={`canvas-node ${selected ? 'selected' : ''} ${compoundMember ? 'compound-member' : ''} ${fullscreen ? 'node-maximized' : ''} ${data.kind}-node`}
     >
       {!fullscreen && <Handle type="target" position={Position.Left} className="node-handle" />}
       <header className="node-header">
