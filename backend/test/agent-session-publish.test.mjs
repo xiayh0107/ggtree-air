@@ -62,6 +62,13 @@ process.exit(result.status ?? 1)
     assert.equal(action.status, 'completed')
     assert.equal(action.claim.agent_id, 'managed:pi')
     assert.equal(action.outputs[0].label, 'published-output.txt')
+    let active = [created.id]
+    for (let attempt = 0; attempt < 200 && active.length; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      const agents = await fetch(`${service.url}/api/agents`).then((response) => response.json())
+      active = agents.agents.find((agent) => agent.id === 'pi')?.active_actions || []
+    }
+    assert.deepEqual(active, [])
   } finally {
     if (service) await new Promise((resolve) => service.server.close(resolve))
     await rm(parent, { recursive: true, force: true })
