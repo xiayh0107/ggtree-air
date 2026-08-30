@@ -26,6 +26,8 @@
 
   const camera = { x: 110, y: 72, zoom: 0.86 }
   let selectedNodeId = null
+  let maximizedNode = null
+  let drawerFullscreen = false
   let currentLayout = null
   let currentRevision = payload.workspace.revision
   let currentVariant = 'base'
@@ -56,6 +58,8 @@
     science: '<path d="M9 3h6M10 3v5l-5 9a3 3 0 0 0 2.6 4.5h8.8A3 3 0 0 0 19 17l-5-9V3"/><path d="M8 15h8"/>',
     open: '<path d="M14 3h7v7M10 14 21 3M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/>',
     fit: '<path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/>',
+    maximize: '<path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/>',
+    minimize: '<path d="M9 3v6H3M15 3v6h6M9 21v-6H3M15 21v-6h6"/>',
     results: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>',
     close: '<path d="m6 6 12 12M18 6 6 18"/>',
     download: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
@@ -519,7 +523,44 @@
     return '已完成'
   }
 
+  function exitNodeFullscreen() {
+    if (!maximizedNode) return false
+    const { article, parent, nextSibling } = maximizedNode
+    article.classList.remove('node-maximized')
+    article.removeAttribute('data-node-fullscreen')
+    const button = article.querySelector('[data-fullscreen-node]')
+    if (button) {
+      button.innerHTML = icon('maximize')
+      button.title = '节点全屏'
+      button.setAttribute('aria-label', '节点全屏')
+    }
+    if (nextSibling?.parentNode === parent) parent.insertBefore(article, nextSibling)
+    else parent.appendChild(article)
+    maximizedNode = null
+    return true
+  }
+
+  function toggleNodeFullscreen(article) {
+    if (maximizedNode?.article === article) {
+      exitNodeFullscreen()
+      return
+    }
+    exitNodeFullscreen()
+    maximizedNode = { article, parent: article.parentNode, nextSibling: article.nextSibling }
+    document.querySelector('.app-shell').appendChild(article)
+    article.classList.add('node-maximized')
+    article.setAttribute('data-node-fullscreen', 'true')
+    const button = article.querySelector('[data-fullscreen-node]')
+    if (button) {
+      button.innerHTML = icon('minimize')
+      button.title = '退出节点全屏'
+      button.setAttribute('aria-label', '退出节点全屏')
+      button.focus()
+    }
+  }
+
   function renderNodes() {
+    exitNodeFullscreen()
     nodeLayer.innerHTML = ''
     for (const node of graph.nodes) {
       const article = document.createElement('article')
@@ -530,7 +571,7 @@
       article.dataset.nodeId = node.id
       article.style.cssText = `left:${node.x}px;top:${node.y}px;width:${node.w}px;height:${node.h}px;z-index:${selectedNodeId === node.id ? 10 : 2}`
       const canCreateTask = node.type === 'tree' || node.type === 'external-artifact'
-      const toolbar = `<div class="node-actions" role="group" aria-label="${escapeHtml(node.title)}节点操作">${canCreateTask ? `<button class="icon-button" type="button" data-edit-node title="创建 Agent 任务" aria-label="创建 Agent 任务">${icon('feedback')}</button>` : ''}<button class="icon-button" type="button" data-open-node title="打开" aria-label="打开">${icon('open')}</button></div>`
+      const toolbar = `<div class="node-actions" role="group" aria-label="${escapeHtml(node.title)}节点操作">${canCreateTask ? `<button class="icon-button" type="button" data-edit-node title="创建 Agent 任务" aria-label="创建 Agent 任务">${icon('feedback')}</button>` : ''}<button class="icon-button" type="button" data-fullscreen-node title="节点全屏" aria-label="节点全屏">${icon('maximize')}</button><button class="icon-button" type="button" data-open-node title="打开" aria-label="打开">${icon('open')}</button></div>`
       const footerTone = actionNode && node.action.status === 'failed' ? 'danger'
         : actionNode && ['pending', 'claimed', 'running'].includes(node.action.status) ? 'active'
           : node.type === 'external-artifact' && node.artifact.role !== 'agent-output' ? 'neutral' : 'success'
@@ -550,6 +591,10 @@
         if (event.target.closest('button')) return
         selectedNodeId = node.id
         renderNodes()
+      })
+      article.querySelector('[data-fullscreen-node]').addEventListener('click', (event) => {
+        event.stopPropagation()
+        toggleNodeFullscreen(article)
       })
       article.querySelectorAll('[data-open-node]').forEach((button) => button.addEventListener('click', (event) => {
         event.stopPropagation()
@@ -709,6 +754,7 @@
   }
 
   function beginNodeDrag(event, node) {
+    if (maximizedNode) return
     if (event.button !== 0) return
     event.stopPropagation()
     selectedNodeId = node.id
@@ -785,18 +831,21 @@
   }
 
   function openExternalArtifact(node) {
+    drawerFullscreen = false
     const role = node.artifact.role === 'reference' || node.artifact.role === 'paper-reference'
       ? '参考输入' : node.artifact.role === 'user-input' ? '任务输入' : 'Agent 产物'
-    drawer.innerHTML = `<div class="drawer-header"><div class="node-icon">${icon(artifactIconName(node.artifact))}</div><div class="drawer-heading"><h2>${escapeHtml(node.artifact.label)}</h2><p>${role} · ${formatBytes(node.artifact.bytes)} · ${shortHash(node.artifact.md5)}</p></div><div class="drawer-header-actions"><button class="icon-button" data-drawer-task title="创建 Agent 任务" aria-label="创建 Agent 任务">${icon('feedback')}</button><a class="icon-button" href="${node.artifact.data_uri || ''}" download="${escapeHtml(node.artifact.label)}" title="下载" aria-label="下载">${icon('download')}</a><button class="icon-button" data-close title="关闭">${icon('close')}</button></div></div><div class="drawer-canvas"><div class="image-frame"><img src="${node.artifact.data_uri || ''}" alt="${escapeHtml(node.artifact.label)}"></div></div>`
+    drawer.innerHTML = `<div class="drawer-header"><div class="node-icon">${icon(artifactIconName(node.artifact))}</div><div class="drawer-heading"><h2>${escapeHtml(node.artifact.label)}</h2><p>${role} · ${formatBytes(node.artifact.bytes)} · ${shortHash(node.artifact.md5)}</p></div><div class="drawer-header-actions"><button class="icon-button" data-drawer-task title="创建 Agent 任务" aria-label="创建 Agent 任务">${icon('feedback')}</button><a class="icon-button" href="${node.artifact.data_uri || ''}" download="${escapeHtml(node.artifact.label)}" title="下载" aria-label="下载">${icon('download')}</a><button class="icon-button" data-drawer-fullscreen title="产物面板全屏" aria-label="产物面板全屏">${icon('maximize')}</button><button class="icon-button" data-close title="关闭">${icon('close')}</button></div></div><div class="drawer-canvas"><div class="image-frame"><img src="${node.artifact.data_uri || ''}" alt="${escapeHtml(node.artifact.label)}"></div></div>`
     drawer.querySelector('[data-close]').addEventListener('click', closeDrawer)
     drawer.querySelector('[data-drawer-task]').addEventListener('click', () => {
       closeDrawer()
       setTimeout(() => openNodeComposer(node), 190)
     })
-    openDrawer()
+    bindDrawerFullscreen()
+    openDrawer({ artifactViewer: true })
   }
 
   function openView(layout, variant = 'base', revision = payload.workspace.revision) {
+    drawerFullscreen = false
     currentLayout = layout
     currentRevision = Number(revision)
     const revisionVariants = variantsFor(layout, currentRevision)
@@ -807,7 +856,7 @@
       ? { selector: { kind: 'view', point: { x: 0.5, y: 0.5 } }, center: { x: 0.5, y: 0.5 } }
       : null
     renderViewDrawer()
-    openDrawer()
+    openDrawer({ artifactViewer: true })
   }
 
   function renderViewDrawer() {
@@ -819,7 +868,7 @@
     const sceneEnabled = currentVariant === (view.variant || preferredVariant(currentLayout, currentRevision))
     drawer.innerHTML = `<div class="drawer-header">
         <div class="node-icon">${icon('tree')}</div><div class="drawer-heading"><h2>${escapeHtml(currentLayout)} · revision ${currentRevision}</h2><p>${historical ? '历史产物 · 只读' : '当前工作流产物'} · ${escapeHtml(image.path)} · ${shortHash(view.artifact?.md5)}</p></div>
-        <div class="drawer-header-actions">${historical ? '' : `<button class="icon-button" data-export title="导出反馈">${icon('download')}</button><button class="icon-button" data-import title="导入反馈">${icon('upload')}</button>`}<button class="icon-button" data-close title="关闭">${icon('close')}</button></div>
+        <div class="drawer-header-actions">${historical ? '' : `<button class="icon-button" data-export title="导出反馈">${icon('download')}</button><button class="icon-button" data-import title="导入反馈">${icon('upload')}</button>`}<button class="icon-button" data-drawer-fullscreen title="产物面板全屏" aria-label="产物面板全屏">${icon('maximize')}</button><button class="icon-button" data-close title="关闭">${icon('close')}</button></div>
       </div>
       <div class="drawer-toolbar"><span class="drawer-view-label">${annotationMode === 'none' ? '推荐成图' : '选择修改范围'}</span><span style="flex:1"></span>${!historical && annotationMode === 'none' ? `<button class="secondary-button" id="toggle-selection-mode">${icon('cursor')} 选择区域</button>` : ''}${!historical && annotationMode !== 'none' ? `<div class="annotation-tools" role="group" aria-label="标注工具"><button class="tool-button ${annotationMode === 'select' ? 'active' : ''}" data-annotation-mode="select" title="智能点选 tip/clade">${icon('cursor')}<span>点选</span></button><button class="tool-button ${annotationMode === 'region' ? 'active' : ''}" data-annotation-mode="region" title="拖动框选区域">${icon('box')}<span>框选</span></button><button class="tool-button ${annotationMode === 'draw' ? 'active' : ''}" data-annotation-mode="draw" title="自由涂鸦">${icon('brush')}<span>画笔</span></button></div><button class="secondary-button" id="finish-selection-mode">完成</button>` : ''}</div>
       <div class="drawer-canvas"><div class="image-frame show-scene mode-${annotationMode}" id="image-frame"><img id="drawer-image" src="${image.data_uri}" alt="${escapeHtml(currentLayout)} tree"><svg class="drawing-layer" id="drawing-layer" viewBox="0 0 1 1" preserveAspectRatio="none"></svg><div class="marker-layer" id="marker-layer"></div></div></div>
@@ -827,6 +876,7 @@
         ? `<section class="annotation-panel"><div class="historical-derive"><div><strong>基于这个旧产物继续</strong><p>系统会从 revision ${currentRevision} 自动创建新分支，旧节点保持不变。</p></div><button type="button" class="primary-button" id="derive-from-history">从此节点创建修改</button></div></section>`
         : ''}`
     drawer.querySelector('[data-close]').addEventListener('click', closeDrawer)
+    bindDrawerFullscreen()
     drawer.querySelector('[data-export]')?.addEventListener('click', exportAnnotations)
     drawer.querySelector('[data-import]')?.addEventListener('click', () => importInput.click())
     drawer.querySelector('#toggle-selection-mode')?.addEventListener('click', () => {
@@ -1304,12 +1354,49 @@
   }
 
   function openInfoDrawer(node) {
-    drawer.innerHTML = `<div class="drawer-header"><div class="node-icon">${icon(node.type)}</div><div class="drawer-heading"><h2>${escapeHtml(node.title)}</h2><p>运行 revision ${payload.workspace.revision}</p></div><div class="drawer-header-actions"><button class="icon-button" data-close>${icon('close')}</button></div></div><div class="info-drawer"><section class="info-section">${nodeBody(node)}</section></div>`
+    const artifactViewer = node.type === 'external-artifact'
+    if (artifactViewer) drawerFullscreen = false
+    const artifact = node.artifact
+    const content = artifactViewer && artifact.text
+      ? `<pre class="artifact-text-viewer ${artifactIconName(artifact) === 'code' ? 'code' : ''}">${escapeHtml(artifact.text)}</pre>`
+      : `<section class="info-section">${nodeBody(node)}</section>`
+    const detail = artifactViewer
+      ? `${escapeHtml(artifact.media_type)} · ${formatBytes(artifact.bytes)} · ${shortHash(artifact.md5)}`
+      : `运行 revision ${payload.workspace.revision}`
+    drawer.innerHTML = `<div class="drawer-header"><div class="node-icon">${icon(artifactViewer ? artifactIconName(artifact) : node.type)}</div><div class="drawer-heading"><h2>${escapeHtml(node.title)}</h2><p>${detail}</p></div><div class="drawer-header-actions">${artifactViewer ? `<button class="icon-button" data-drawer-task title="创建 Agent 任务" aria-label="创建 Agent 任务">${icon('feedback')}</button><button class="icon-button" data-drawer-fullscreen title="产物面板全屏" aria-label="产物面板全屏">${icon('maximize')}</button>` : ''}<button class="icon-button" data-close>${icon('close')}</button></div></div><div class="info-drawer artifact-info-drawer">${content}</div>`
     drawer.querySelector('[data-close]').addEventListener('click', closeDrawer)
-    openDrawer()
+    drawer.querySelector('[data-drawer-task]')?.addEventListener('click', () => {
+      closeDrawer()
+      setTimeout(() => openNodeComposer(node), 190)
+    })
+    if (artifactViewer) bindDrawerFullscreen()
+    openDrawer({ artifactViewer })
   }
 
-  function openDrawer() {
+  function setDrawerFullscreen(value) {
+    drawerFullscreen = Boolean(value)
+    drawer.classList.toggle('fullscreen', drawerFullscreen)
+    backdrop.classList.toggle('fullscreen', drawerFullscreen)
+    drawer.querySelectorAll('[data-drawer-fullscreen]').forEach((button) => {
+      button.innerHTML = icon(drawerFullscreen ? 'minimize' : 'maximize')
+      button.title = drawerFullscreen ? '退出产物面板全屏' : '产物面板全屏'
+      button.setAttribute('aria-label', button.title)
+      button.setAttribute('aria-pressed', String(drawerFullscreen))
+    })
+  }
+
+  function bindDrawerFullscreen() {
+    drawer.querySelectorAll('[data-drawer-fullscreen]').forEach((button) => {
+      button.addEventListener('click', () => setDrawerFullscreen(!drawerFullscreen))
+    })
+    setDrawerFullscreen(drawerFullscreen)
+  }
+
+  function openDrawer({ artifactViewer = false } = {}) {
+    exitNodeFullscreen()
+    drawer.classList.toggle('artifact-viewer', artifactViewer)
+    if (!artifactViewer) setDrawerFullscreen(false)
+    else setDrawerFullscreen(drawerFullscreen)
     drawer.classList.add('open')
     drawer.setAttribute('aria-hidden', 'false')
     backdrop.hidden = false
@@ -1317,6 +1404,8 @@
 
   function closeDrawer() {
     drawer.classList.remove('open')
+    drawer.classList.remove('artifact-viewer')
+    setDrawerFullscreen(false)
     drawer.setAttribute('aria-hidden', 'true')
     backdrop.hidden = true
     delete drawer.dataset.actionId
@@ -1424,7 +1513,13 @@
   document.querySelector('[data-tool="fit"]').addEventListener('click', () => fitNodes())
   document.querySelector('[data-tool="workspaces"]').addEventListener('click', () => void openWorkspacePanel())
   rerunButton.addEventListener('click', rerun)
-  window.addEventListener('keydown', (event) => { if (event.key === 'Escape' && drawer.classList.contains('open')) closeDrawer() })
+  window.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return
+    if (maximizedNode) { exitNodeFullscreen(); return }
+    if (!drawer.classList.contains('open')) return
+    if (drawerFullscreen) setDrawerFullscreen(false)
+    else closeDrawer()
+  })
 
   document.getElementById('project-title').textContent = payload.workspace.title
   document.getElementById('project-subtitle').textContent = payload.workspace.subtitle || `revision ${payload.workspace.revision}`
