@@ -23,7 +23,9 @@ test('artifact-first workspace starts with real inputs and no pre-rendered tree 
     assert.match(artifact.media_type, /newick/)
     const topLevel = await readdir(root)
     assert.equal(topLevel.some((name) => /^tree_.*\.png$/.test(name)), false)
-    assert.match(await readFile(path.join(root, 'report.html'), 'utf8'), /input-only task/)
+    const report = await readFile(path.join(root, 'report.html'), 'utf8')
+    assert.match(report, /input-only task/)
+    assert.match(report, /\(a:1,b:1\)/)
   } finally {
     await rm(parent, { recursive: true, force: true })
   }

@@ -36,7 +36,11 @@ test('canvas report exposes semantic nodes and persists feedback', { timeout: 18
     assert.match(await page.locator('.workspace-panel').textContent(), /真实输入与 Agent 产物|尚未导入输入资源/)
     assert.equal(await page.locator('.demo-card').count(), 0)
     await page.locator('[data-close]').click()
+    await page.waitForTimeout(220)
 
+    await page.locator('[data-node-id="view-r1-rectangular"]').hover()
+    assert.equal(await page.locator('[data-node-id="view-r1-rectangular"] .node-footer [data-edit-node]').count(), 0)
+    assert.equal(await page.locator('[data-node-id="view-r1-rectangular"] .node-actions [data-edit-node]').count(), 1)
     await page.locator('[data-node-id="view-r1-rectangular"] [data-edit-node]').click()
     assert.equal(await page.locator('#node-composer:not([hidden])').count(), 1)
     assert.equal(await page.locator('#node-composer-input').count(), 1)
@@ -121,6 +125,7 @@ test('canvas report exposes semantic nodes and persists feedback', { timeout: 18
       null, { timeout: 30_000 })
     assert.equal(await page.locator('[data-node-id^="agent-artifact-"]').count(), 2)
     assert.match(await page.locator(`[data-node-id="agent-action-${actionId}"]`).textContent(), /已生成 2 个产物/)
+    assert.equal(await page.locator(`[data-node-id="agent-action-${actionId}"] [data-open-run]`).textContent(), '查看过程')
     assert.equal((await (await fetch(`${service.url}/api/workspace`)).json()).revision, 1)
     assert.deepEqual(pageErrors, [])
   } finally {

@@ -45,6 +45,16 @@ async function readOptionalJson(target, fallback) {
   return await pathExists(target) ? readJson(target) : fallback
 }
 
+async function hydrateArtifactForReport(root, artifact) {
+  const target = path.join(root, artifact.path)
+  if (!await pathExists(target)) return
+  if (artifact.media_type?.startsWith('image/')) {
+    artifact.data_uri = `data:${artifact.media_type.split(';')[0]};base64,${(await readFile(target)).toString('base64')}`
+  } else if (artifact.media_type?.startsWith('text/') && Number(artifact.bytes) <= 512 * 1024) {
+    artifact.text = await readFile(target, 'utf8')
+  }
+}
+
 async function loadRevision({ directory, revision, current, record }) {
   if (!await pathExists(path.join(directory, 'scene.json'))) return null
   const [scene, runMetadata, feedbackStatus, annotations, appliedAnnotations, appliedPlan, revisionDiff, revisionScore] = await Promise.all([
@@ -112,20 +122,9 @@ export async function buildReport({
 
   const actions = await listActions(workspaceRoot)
   const workspaceArtifacts = await listWorkspaceArtifacts(workspaceRoot)
-  for (const artifact of workspaceArtifacts) {
-    if (!artifact.media_type?.startsWith('image/')) continue
-    const target = path.join(workspaceRoot, artifact.path)
-    if (await pathExists(target)) {
-      artifact.data_uri = `data:${artifact.media_type.split(';')[0]};base64,${(await readFile(target)).toString('base64')}`
-    }
-  }
+  for (const artifact of workspaceArtifacts) await hydrateArtifactForReport(workspaceRoot, artifact)
   for (const action of actions) {
-    for (const output of action.outputs || []) {
-      if (!output.media_type?.startsWith('image/')) continue
-      const target = path.join(workspaceRoot, output.path)
-      if (!await pathExists(target)) continue
-      output.data_uri = `data:${output.media_type.split(';')[0]};base64,${(await readFile(target)).toString('base64')}`
-    }
+    for (const output of action.outputs || []) await hydrateArtifactForReport(workspaceRoot, output)
   }
 
   const payload = {

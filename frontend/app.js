@@ -46,6 +46,10 @@
     input: '<path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/>',
     route: '<circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 6h10M6.5 7.5l4.2 8M17.5 7.5l-4.2 8"/>',
     tree: '<path d="M12 3v5M5 21v-5h14v5M5 16v-4h14v4M12 8v4"/><circle cx="5" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>',
+    image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m5 18 5-5 3 3 2-2 4 4"/>',
+    file: '<path d="M6 2h8l4 4v16H6z"/><path d="M14 2v5h5M9 13h6M9 17h6"/>',
+    code: '<path d="m9 8-4 4 4 4M15 8l4 4-4 4M13 5l-2 14"/>',
+    table: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M3 14h18M9 4v16M15 4v16"/>',
     feedback: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8M8 13h5"/>',
     branches: '<circle cx="6" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="6" cy="20" r="2"/><path d="M6 6v12M8 7c4 0 4 1 8 1M8 17c4 0 4-5 8-7"/>',
     folder: '<path d="M3 6h7l2 2h9v11H3z"/><path d="M3 6V4h7l2 2"/>',
@@ -102,6 +106,28 @@
 
   function shortHash(value) {
     return typeof value === 'string' ? value.slice(0, 8) : '—'
+  }
+
+  function formatBytes(value) {
+    const bytes = Number(value) || 0
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} KB`
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+  }
+
+  function artifactIconName(artifact) {
+    const mediaType = String(artifact?.media_type || '')
+    const name = String(artifact?.label || '').toLowerCase()
+    if (mediaType.startsWith('image/')) return 'image'
+    if (mediaType.includes('csv') || mediaType.includes('tab-separated')) return 'table'
+    if (mediaType.includes('r-source') || /\.(r|py|js|ts)$/.test(name)) return 'code'
+    return 'file'
+  }
+
+  function nodeIconName(node) {
+    if (node.type === 'external-artifact') return artifactIconName(node.artifact)
+    if (node.type === 'revision-feedback' || node.type === 'protocol-action' || node.type.startsWith('draft-')) return 'feedback'
+    return node.type
   }
 
   function sourcePath() {
@@ -236,8 +262,8 @@
       artifact,
       x: 80 + (index % 3) * 480,
       y: viewStartY + Math.floor(index / 3) * 360,
-      w: 430,
-      h: artifact.data_uri ? 330 : 170,
+      w: artifact.data_uri ? 430 : 390,
+      h: artifact.data_uri ? 330 : artifact.text ? 230 : 180,
       current: true,
     }))
     const protocolNodes = []
@@ -264,12 +290,12 @@
       const actionNode = {
         id: `agent-action-${action.id}`,
         type: 'protocol-action',
-        title: shortInstruction(action.instruction, 28),
+        title: 'Agent 任务',
         action,
         x: sourceRight + 250,
         y: sourceCenterY - 95,
         w: 300,
-        h: action.progress?.preview ? 310 : 230,
+        h: ['pending', 'claimed', 'running'].includes(action.status) && action.progress?.preview ? 310 : 220,
       }
       protocolNodes.push(actionNode)
       protocolNodeById.set(actionNode.id, actionNode)
@@ -285,8 +311,8 @@
           actionId: action.id,
           x: actionNode.x + actionNode.w + 250,
           y: actionNode.y + index * 360 - ((action.outputs.length - 1) * 180),
-          w: 430,
-          h: artifact.data_uri ? 330 : 170,
+          w: artifact.data_uri ? 430 : 390,
+          h: artifact.data_uri ? 330 : artifact.text ? 230 : 180,
           current: true,
         }
         protocolNodes.push(artifactNode)
@@ -432,13 +458,32 @@
         completed: `已生成 ${node.action.outputs?.length || 0} 个产物`, failed: '执行失败',
       }[node.action.status] || node.action.status
       const progress = node.action.progress || {}
-      const recentEvents = (node.action.events || []).filter((event) => event.type === 'progress').slice(-3)
-      return `<div class="action-request"><span>用户要求</span><blockquote>${escapeHtml(node.action.instruction)}</blockquote></div>${progress.preview ? `<img class="agent-preview" src="/api/actions/${node.action.id}/preview?t=${encodeURIComponent(progress.updated || '')}" alt="Agent preview">` : ''}<div class="agent-action-status status-${escapeHtml(node.action.status)}">${node.action.status === 'running' ? '<i></i>' : ''}${escapeHtml(progress.message || statusText)}</div>${Number.isFinite(Number(progress.percent)) && node.action.status !== 'pending' ? `<div class="agent-progress"><span style="width:${Math.max(0, Math.min(100, Number(progress.percent)))}%"></span></div>` : ''}${recentEvents.length ? `<ul class="agent-events">${recentEvents.map((event) => `<li>${escapeHtml(event.message)}</li>`).join('')}</ul>` : ''}${node.action.error ? `<p class="feedback-copy">${escapeHtml(node.action.error.message)}</p>` : ''}`
+      const active = ['pending', 'claimed', 'running'].includes(node.action.status)
+      const recentEvents = active
+        ? (node.action.events || []).filter((event) => event.type === 'progress').slice(-2)
+        : []
+      return `<div class="action-request"><span>用户要求</span><blockquote>${escapeHtml(node.action.instruction)}</blockquote></div>${active && progress.preview ? `<img class="agent-preview" src="/api/actions/${node.action.id}/preview?t=${encodeURIComponent(progress.updated || '')}" alt="Agent preview">` : ''}<div class="agent-action-status status-${escapeHtml(node.action.status)}">${node.action.status === 'running' ? '<i></i>' : ''}${escapeHtml(progress.message || statusText)}</div>${Number.isFinite(Number(progress.percent)) && active && node.action.status !== 'pending' ? `<div class="agent-progress"><span style="width:${Math.max(0, Math.min(100, Number(progress.percent)))}%"></span></div>` : ''}${recentEvents.length ? `<ul class="agent-events">${recentEvents.map((event) => `<li>${escapeHtml(event.message)}</li>`).join('')}</ul>` : ''}${node.action.error ? `<p class="feedback-copy">${escapeHtml(node.action.error.message)}</p>` : ''}`
     }
     if (node.type === 'external-artifact') {
-      return node.artifact.data_uri
-        ? `<img class="tree-preview" src="${node.artifact.data_uri}" alt="${escapeHtml(node.artifact.label)}">`
-        : `<div class="external-file"><strong>${escapeHtml(node.artifact.label)}</strong><p>${escapeHtml(node.artifact.media_type)}</p></div>`
+      const artifact = node.artifact
+      if (artifact.data_uri) {
+        return `<img class="tree-preview artifact-image-preview" src="${artifact.data_uri}" alt="${escapeHtml(artifact.label)}">`
+      }
+      const mediaType = String(artifact.media_type || 'application/octet-stream')
+      const text = String(artifact.text || '')
+      const lines = text.split(/\r?\n/).filter((line) => line.trim())
+      const isTable = mediaType.includes('csv') || mediaType.includes('tab-separated')
+      const isCode = mediaType.includes('r-source') || /\.(r|py|js|ts)$/i.test(artifact.label)
+      const isTree = mediaType.includes('newick')
+      const format = isTable ? (mediaType.includes('tab-separated') ? 'TSV' : 'CSV')
+        : isCode ? 'CODE' : isTree ? 'NEWICK' : 'FILE'
+      const detail = isTable && lines.length
+        ? `${Math.max(0, lines.length - 1)} 行 · ${lines[0].split(mediaType.includes('tab-separated') ? '\t' : ',').length} 列`
+        : `${formatBytes(artifact.bytes)} · ${shortHash(artifact.md5)}`
+      const preview = isTable
+        ? lines.slice(0, 5).join('\n')
+        : text.slice(0, isCode ? 1200 : 520)
+      return `<div class="artifact-file-body"><div class="artifact-file-meta"><span>${format}</span><small>${escapeHtml(detail)}</small></div>${preview ? `<pre class="${isCode ? 'code-preview' : 'data-preview'}">${escapeHtml(preview)}</pre>` : `<div class="artifact-file-empty">${icon(artifactIconName(artifact))}<span>${escapeHtml(mediaType)}</span></div>`}</div>`
     }
     if (node.type === 'revision-feedback') {
       const items = node.feedbackItems || []
@@ -465,6 +510,12 @@
     }[node.action.status] || node.action.status
     if (node.type === 'revision-feedback') return '已消费动作'
     if (node.type === 'tree' && !node.current) return '历史产物'
+    if (node.type === 'external-artifact') {
+      if (node.artifact.role === 'reference' || node.artifact.role === 'paper-reference') return '参考输入'
+      if (node.artifact.role === 'user-input') return '任务输入'
+      if (node.artifact.role === 'agent-output') return '已完成'
+      return '已导入'
+    }
     return '已完成'
   }
 
@@ -472,16 +523,29 @@
     nodeLayer.innerHTML = ''
     for (const node of graph.nodes) {
       const article = document.createElement('article')
-      article.className = `canvas-node${selectedNodeId === node.id ? ' selected' : ''}${node.type === 'tree' && !node.current ? ' history-node' : ''}${(node.type === 'tree' && node.current || node.type === 'external-artifact') ? ' current-output-node' : ''}${node.type.startsWith('draft-') ? ' draft-action-node' : ''}`
+      const imageArtifact = node.type === 'external-artifact' && Boolean(node.artifact.data_uri)
+      const fileArtifact = node.type === 'external-artifact' && !imageArtifact
+      const actionNode = node.type === 'protocol-action'
+      article.className = `canvas-node${selectedNodeId === node.id ? ' selected' : ''}${node.type === 'tree' && !node.current ? ' history-node' : ''}${imageArtifact ? ' image-node' : ''}${fileArtifact ? ' file-node' : ''}${actionNode ? ' action-node' : ''}${node.type.startsWith('draft-') ? ' draft-action-node' : ''}`
       article.dataset.nodeId = node.id
       article.style.cssText = `left:${node.x}px;top:${node.y}px;width:${node.w}px;height:${node.h}px;z-index:${selectedNodeId === node.id ? 10 : 2}`
+      const canCreateTask = node.type === 'tree' || node.type === 'external-artifact'
+      const toolbar = `<div class="node-actions" role="group" aria-label="${escapeHtml(node.title)}节点操作">${canCreateTask ? `<button class="icon-button" type="button" data-edit-node title="创建 Agent 任务" aria-label="创建 Agent 任务">${icon('feedback')}</button>` : ''}<button class="icon-button" type="button" data-open-node title="打开" aria-label="打开">${icon('open')}</button></div>`
+      const footerTone = actionNode && node.action.status === 'failed' ? 'danger'
+        : actionNode && ['pending', 'claimed', 'running'].includes(node.action.status) ? 'active'
+          : node.type === 'external-artifact' && node.artifact.role !== 'agent-output' ? 'neutral' : 'success'
+      const statusMark = footerTone === 'active' ? '<i class="activity-spinner"></i>'
+        : footerTone === 'danger' ? '!' : footerTone === 'neutral' ? '•' : '✓'
+      const footerAction = actionNode
+        ? '<button type="button" class="activity-link" data-open-run>查看过程</button>'
+        : node.type === 'external-artifact' && node.actionId
+          ? '<button type="button" class="activity-link" data-open-parent-run>查看过程</button>' : ''
       article.innerHTML = `<header class="node-header" data-drag-handle>
-          <span class="node-icon">${icon(node.type === 'revision-feedback' || node.type === 'protocol-action' || node.type.startsWith('draft-') ? 'feedback' : node.type === 'external-artifact' ? 'tree' : node.type)}</span><span class="node-title">${escapeHtml(node.title)}</span>
+          <span class="node-icon">${icon(nodeIconName(node))}</span><span class="node-title">${escapeHtml(actionNode ? 'Agent 任务' : node.title)}</span>
           <span class="node-kicker">${node.type === 'tree' ? shortHash(revisionData(node.revision).scene.views.find((v) => v.layout === node.layout)?.artifact?.md5) : ''}</span>
-        </header>
-        <div class="node-actions"><button class="icon-button" type="button" data-open-node title="打开">${icon('open')}</button></div>
-        <div class="node-body ${node.type === 'tree' || node.type === 'external-artifact' ? 'no-inset' : ''}">${nodeBody(node)}</div>
-        <footer class="node-footer"><span class="${node.type.startsWith('draft-') || node.type === 'protocol-action' && node.action.status !== 'completed' ? '' : 'success'}">${node.type === 'protocol-action' && node.action.status === 'running' ? '◌' : node.type.startsWith('draft-') || node.type === 'protocol-action' && node.action.status !== 'completed' ? '○' : '✓'}</span><span>${escapeHtml(footerStatus(node))}</span>${node.type === 'protocol-action' ? '<button type="button" data-open-run>查看过程</button>' : node.type === 'tree' || node.type === 'external-artifact' ? `<button type="button" data-edit-node>＋ Agent 任务</button>` : ''}</footer>`
+        </header>${toolbar}
+        <div class="node-body ${node.type === 'tree' || imageArtifact ? 'no-inset' : ''}">${nodeBody(node)}</div>
+        <footer class="node-footer"><span class="activity-state ${footerTone}">${statusMark}<span>${escapeHtml(footerStatus(node))}</span></span>${footerAction}</footer>`
       article.addEventListener('pointerdown', (event) => {
         if (event.target.closest('button')) return
         selectedNodeId = node.id
@@ -494,6 +558,11 @@
       article.querySelector('[data-open-run]')?.addEventListener('click', (event) => {
         event.stopPropagation()
         void openActionRunDrawer(node)
+      })
+      article.querySelector('[data-open-parent-run]')?.addEventListener('click', (event) => {
+        event.stopPropagation()
+        const action = protocolActions.find((candidate) => candidate.id === node.actionId)
+        if (action) void openActionRunDrawer({ action })
       })
       article.querySelectorAll('[data-edit-node]').forEach((button) => button.addEventListener('click', (event) => {
         event.stopPropagation()
@@ -524,10 +593,11 @@
       : composerSelection?.selector?.kind === 'clade' ? `clade ${composerSelection.selector.node}`
         : composerSelection?.selector?.kind === 'region' ? '框选区域'
           : composerSelection?.selector?.kind === 'stroke' ? '自由涂鸦' : null
+    const sourceTitle = node.layout || node.artifact?.label || '当前产物'
     const contextChoices = workspaceArtifacts.length > 1
-      ? `<div class="composer-context" aria-label="Agent 输入资源">${workspaceArtifacts.map((artifact) => `<label><input type="checkbox" data-composer-source="${escapeHtml(artifact.id)}" checked><span>${escapeHtml(artifact.label)}</span></label>`).join('')}</div>`
+      ? `<div class="composer-context-block"><span>任务输入</span><div class="composer-context" aria-label="Agent 输入资源">${workspaceArtifacts.map((artifact) => `<label><input type="checkbox" data-composer-source="${escapeHtml(artifact.id)}" checked><span>${escapeHtml(artifact.label)}</span></label>`).join('')}</div></div>`
       : ''
-    composer.innerHTML = `<div class="node-composer-head"><strong>基于 ${escapeHtml(node.layout || node.artifact?.label || '产物')} 创建任务</strong><button type="button" data-composer-close>×</button></div>${selectionLabel ? `<button type="button" class="selection-chip" data-composer-clear-selection>${escapeHtml(selectionLabel)} ×</button>` : ''}${contextChoices}<div class="node-composer-row">${node.type === 'tree' ? `<button type="button" class="composer-annotate" data-composer-annotate title="在图上选择区域">${icon('brush')}</button>` : ''}<textarea rows="2" placeholder="告诉 Agent 要完成的具体任务…" id="node-composer-input"></textarea><button type="button" class="composer-send" data-composer-send aria-label="发送">↑</button></div>`
+    composer.innerHTML = `<div class="node-composer-head"><div><strong>新建 Agent 任务</strong><small>来源 · ${escapeHtml(sourceTitle)}</small></div><button type="button" data-composer-close aria-label="关闭">×</button></div>${selectionLabel ? `<button type="button" class="selection-chip" data-composer-clear-selection>${escapeHtml(selectionLabel)} ×</button>` : ''}${contextChoices}<div class="node-composer-surface"><div class="node-composer-row">${node.type === 'tree' ? `<button type="button" class="composer-annotate" data-composer-annotate title="在图上选择区域">${icon('brush')}</button>` : ''}<textarea rows="2" placeholder="告诉 Agent 要完成的具体任务…" id="node-composer-input"></textarea><button type="button" class="composer-send" data-composer-send aria-label="发送">↑</button></div></div><div class="node-composer-footer"><span>${workspaceArtifacts.length || 1} 个上下文资源</span><span>⌘/Ctrl + Enter</span></div>`
     composer.querySelector('[data-composer-close]').addEventListener('click', () => {
       composerNodeId = null; composerSelection = null; renderNodeComposer()
     })
@@ -557,8 +627,8 @@
     if (!node || composer.hidden) return
     const left = camera.x + (node.x + node.w / 2) * camera.zoom
     const top = camera.y + (node.y + node.h) * camera.zoom + 12
-    composer.style.left = `${Math.max(190, Math.min(stage.clientWidth - 190, left))}px`
-    composer.style.top = `${Math.max(12, Math.min(stage.clientHeight - 190, top))}px`
+    composer.style.left = `${Math.max(220, Math.min(stage.clientWidth - 220, left))}px`
+    composer.style.top = `${Math.max(12, Math.min(stage.clientHeight - 300, top))}px`
   }
 
   function openNodeComposer(node) {
@@ -613,7 +683,7 @@
   }
 
   function updateEdges() {
-    const definitions = '<defs><marker id="workflow-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#7DA7E8"/></marker></defs>'
+    const definitions = '<defs><marker id="workflow-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8FB3E8"/></marker></defs>'
     edgeLayer.innerHTML = definitions + graph.edges.map((edge) => {
       const from = nodeById.get(edge.from)
       const to = nodeById.get(edge.to)
@@ -626,7 +696,7 @@
       const draft = edge.label === 'draft action'
       const agentEdge = edge.label.startsWith('agent')
       const label = edge.label === 'feedback output' ? `<text x="${(start.x + end.x) / 2}" y="${(start.y + end.y) / 2 - 8}" text-anchor="middle" fill="#526176" font-size="10">生成新产物</text>` : edge.label === 'merge output' ? `<text x="${(start.x + end.x) / 2}" y="${(start.y + end.y) / 2 - 8}" text-anchor="middle" fill="#526176" font-size="10">合并产物</text>` : ''
-      return `<path d="${path}" fill="none" stroke="${draft ? '#E8A23A' : agentEdge ? '#1769E0' : lineage ? '#7DA7E8' : '#A7B8CE'}" stroke-width="${lineage || draft || agentEdge ? '1.9' : '1.4'}" stroke-dasharray="${draft ? '6 4' : ''}" marker-end="url(#workflow-arrow)" vector-effect="non-scaling-stroke"/>${draft ? `<text x="${(start.x + end.x) / 2}" y="${(start.y + end.y) / 2 - 8}" text-anchor="middle" fill="#9A6700" font-size="10">待生成动作</text>` : label}`
+      return `<path d="${path}" fill="none" stroke="${draft ? '#E8A23A' : agentEdge ? '#5B91DF' : lineage ? '#9AB9E6' : '#B4C1D2'}" stroke-width="${lineage || draft || agentEdge ? '1.35' : '1.15'}" stroke-dasharray="${draft ? '6 4' : ''}" marker-end="url(#workflow-arrow)" vector-effect="non-scaling-stroke"/>${draft ? `<text x="${(start.x + end.x) / 2}" y="${(start.y + end.y) / 2 - 8}" text-anchor="middle" fill="#9A6700" font-size="10">待生成动作</text>` : label}`
     }).join('')
   }
 
@@ -715,8 +785,14 @@
   }
 
   function openExternalArtifact(node) {
-    drawer.innerHTML = `<div class="drawer-header"><div class="node-icon">${icon('tree')}</div><div class="drawer-heading"><h2>${escapeHtml(node.artifact.label)}</h2><p>${node.artifact.role === 'paper-reference' ? '目标 Figure' : 'Agent 产物'} · ${shortHash(node.artifact.md5)}</p></div><div class="drawer-header-actions"><button class="icon-button" data-close title="关闭">${icon('close')}</button></div></div><div class="drawer-canvas"><div class="image-frame"><img src="${node.artifact.data_uri || ''}" alt="${escapeHtml(node.artifact.label)}"></div></div>`
+    const role = node.artifact.role === 'reference' || node.artifact.role === 'paper-reference'
+      ? '参考输入' : node.artifact.role === 'user-input' ? '任务输入' : 'Agent 产物'
+    drawer.innerHTML = `<div class="drawer-header"><div class="node-icon">${icon(artifactIconName(node.artifact))}</div><div class="drawer-heading"><h2>${escapeHtml(node.artifact.label)}</h2><p>${role} · ${formatBytes(node.artifact.bytes)} · ${shortHash(node.artifact.md5)}</p></div><div class="drawer-header-actions"><button class="icon-button" data-drawer-task title="创建 Agent 任务" aria-label="创建 Agent 任务">${icon('feedback')}</button><a class="icon-button" href="${node.artifact.data_uri || ''}" download="${escapeHtml(node.artifact.label)}" title="下载" aria-label="下载">${icon('download')}</a><button class="icon-button" data-close title="关闭">${icon('close')}</button></div></div><div class="drawer-canvas"><div class="image-frame"><img src="${node.artifact.data_uri || ''}" alt="${escapeHtml(node.artifact.label)}"></div></div>`
     drawer.querySelector('[data-close]').addEventListener('click', closeDrawer)
+    drawer.querySelector('[data-drawer-task]').addEventListener('click', () => {
+      closeDrawer()
+      setTimeout(() => openNodeComposer(node), 190)
+    })
     openDrawer()
   }
 
@@ -1116,7 +1192,8 @@
   async function openActionRunDrawer(node) {
     const action = node.action
     drawer.dataset.actionId = action.id
-    drawer.innerHTML = `<div class="drawer-header"><div class="node-icon">${icon('feedback')}</div><div class="drawer-heading"><h2>Agent 运行过程</h2><p>${escapeHtml(action.claim?.agent_id || '等待 Agent')} · ${escapeHtml(action.status)}</p></div><div class="drawer-header-actions"><button class="icon-button" data-close>${icon('close')}</button></div></div><div class="info-drawer"><section class="info-section"><h3>用户要求</h3><p>${escapeHtml(action.instruction)}</p></section><section class="info-section"><h3>真实运行记录</h3><div id="agent-run-activity"><p>正在读取 Agent 日志…</p></div></section></div>`
+    const processEvents = (action.events || []).filter((event) => ['created', 'claimed', 'running', 'progress', 'completed', 'failed', 'interrupted'].includes(event.type))
+    drawer.innerHTML = `<div class="drawer-header"><div class="node-icon">${icon('feedback')}</div><div class="drawer-heading"><h2>Agent 运行过程</h2><p>${escapeHtml(action.claim?.agent_id || '等待 Agent')} · ${escapeHtml(action.status)}</p></div><div class="drawer-header-actions"><button class="icon-button" data-close>${icon('close')}</button></div></div><div class="info-drawer"><section class="info-section"><h3>用户要求</h3><p>${escapeHtml(action.instruction)}</p></section><section class="info-section"><h3>过程</h3><ol class="agent-process-list">${processEvents.map((event) => `<li><time>${escapeHtml(new Date(event.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))}</time><span>${escapeHtml(event.message)}</span></li>`).join('')}</ol></section><section class="info-section"><h3>详细工具日志</h3><div id="agent-run-activity"><p>正在读取 Agent 日志…</p></div></section></div>`
     drawer.querySelector('[data-close]').addEventListener('click', closeDrawer)
     openDrawer()
     try {
