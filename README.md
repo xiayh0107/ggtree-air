@@ -2,6 +2,8 @@
 
 > **把系统发育树交给任意 Agent：它负责读数据、画图、打开节点画布，并持续处理你的点选、框选、涂鸦和文字修改，直到你满意。**
 
+![ggtree-air：参考图与用户数据经过真实 Agent 任务生成图片和可复现代码](docs/images/ggtree-air-agent-workflow.png)
+
 ## Agent 一键接入
 
 把下面整段复制到任意支持命令行和 Skill 的 Agent 对话窗口。Agent 会替你完成安装、环境检查、Skill 配置和首次使用；**不要自己执行里面的命令**。
