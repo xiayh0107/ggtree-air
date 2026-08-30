@@ -10,7 +10,7 @@ import { openWorkspaceService, readServiceState, registerService, stopWorkspaceS
 import { inferRunSpec } from './auto-spec.mjs'
 import {
   claimAction, commitActionArtifacts, createAction, failAction, getAction,
-  importWorkspaceArtifact, listActions, markActionRunning, updateActionProgress,
+  importWorkspaceArtifact, listActions, listWorkspaceArtifacts, markActionRunning, updateActionProgress,
   waitForAction,
 } from './actions.mjs'
 import { bundledSkillPath, installBundledSkill, listBundledSkills } from './skill-manager.mjs'
@@ -30,7 +30,7 @@ Usage:
   ggtree-air recipes list
   ggtree-air recipes run CASE --out WORKSPACE [--force]
   ggtree-air auto --input TREE_OR_FASTA [--metadata TABLE] [--out WORKSPACE]
-  ggtree-air actions create|wait|next|list|show|claim|running|progress|fail ...
+  ggtree-air actions publish|create|wait|next|list|show|claim|running|progress|fail ...
   ggtree-air artifacts commit ACTION --workspace WORKSPACE --file OUTPUT [--file OUTPUT]
   ggtree-air run --dist MATRIX --out WORKSPACE [options]
   ggtree-air run --tree TREE --out WORKSPACE [options]
@@ -270,8 +270,60 @@ function extractRepeatedFiles(tokens) {
   return { files, remaining }
 }
 
+function extractRepeatedSources(tokens) {
+  const sources = []
+  const remaining = []
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (tokens[index] === '--source') {
+      const value = tokens[++index]
+      if (!value) throw new Error('--source needs a value')
+      sources.push(value)
+    } else remaining.push(tokens[index])
+  }
+  return { sources, remaining }
+}
+
+function parsePublishedSource(value) {
+  const source = String(value)
+  if (source.startsWith('workspace:')) {
+    return { kind: 'workspace-artifact', artifact_id: source.slice('workspace:'.length) }
+  }
+  if (source.startsWith('action:')) {
+    return { kind: 'action-artifact', artifact_id: source.slice('action:'.length) }
+  }
+  if (source.startsWith('view:')) {
+    const [, revision, layout] = source.split(':')
+    if (!revision || !layout) throw new Error('--source view syntax is view:REVISION:LAYOUT')
+    return { kind: 'revision-view', revision: Number(revision), layout }
+  }
+  return { kind: 'workspace-artifact', artifact_id: source }
+}
+
 async function actions(tokens) {
   const [action = 'list', id, ...rest] = tokens
+  if (action === 'publish') {
+    const extracted = extractRepeatedSources([id, ...rest].filter(Boolean))
+    const options = parseArgs(extracted.remaining)
+    assertKnownOptions(options, ['workspace', 'instruction', 'author'])
+    if (!options.workspace || !options.instruction) {
+      throw new Error('--workspace and --instruction are required')
+    }
+    const root = path.resolve(options.workspace)
+    const sources = extracted.sources.length
+      ? extracted.sources.map(parsePublishedSource)
+      : (await listWorkspaceArtifacts(root)).map((artifact) => ({
+          kind: 'workspace-artifact', artifact_id: artifact.id,
+        }))
+    if (!sources.length) throw new Error('No workspace inputs are available; import artifacts or pass --source')
+    const created = await createAction(root, {
+      sources, instruction: options.instruction,
+    }, {
+      origin: { kind: 'agent-session', actor: options.author || 'agent-session' },
+    })
+    await refreshWorkspacePresentation(root)
+    console.log(JSON.stringify(created, null, 2))
+    return 0
+  }
   if (action === 'create') {
     const options = parseArgs([id, ...rest].filter(Boolean))
     assertKnownOptions(options, ['workspace', 'revision', 'layout', 'artifact', 'instruction'])
@@ -280,7 +332,9 @@ async function actions(tokens) {
     const source = options.artifact
       ? { kind: 'action-artifact', artifact_id: options.artifact }
       : { kind: 'revision-view', revision: Number(options.revision), layout: options.layout }
-    const created = await createAction(root, { source, instruction: options.instruction })
+    const created = await createAction(root, { source, instruction: options.instruction }, {
+      origin: { kind: 'cli', actor: 'cli-user' },
+    })
     await refreshWorkspacePresentation(root)
     console.log(JSON.stringify(created, null, 2))
     return 0

@@ -142,11 +142,17 @@ function normalizedFreeSelection(selection) {
   throw new Error('This artifact does not expose semantic tip/clade selection')
 }
 
-export async function createAction(root, input) {
+export async function createAction(root, input, {
+  origin = { kind: 'api', actor: null },
+} = {}) {
   root = path.resolve(root)
   const instruction = String(input?.instruction || '').trim()
   if (!instruction) throw new Error('Action instruction must be non-empty')
   if (instruction.length > 8000) throw new Error('Action instruction is too long')
+  const originKind = String(origin?.kind || 'api')
+  if (!['api', 'canvas', 'cli', 'agent-session'].includes(originKind)) {
+    throw new Error(`Unsupported Action origin: ${originKind}`)
+  }
   const requestedSources = Array.isArray(input?.sources) && input.sources.length
     ? input.sources : input?.source ? [input.source] : []
   if (!requestedSources.length) throw new Error('At least one Action source is required')
@@ -189,6 +195,10 @@ export async function createAction(root, input) {
     branch: (await rawWorkspace(root)).current_branch || 'main',
     source,
     sources,
+    origin: {
+      kind: originKind,
+      actor: origin?.actor ? String(origin.actor) : null,
+    },
     instruction,
     selection,
     status: 'pending',
@@ -197,7 +207,10 @@ export async function createAction(root, input) {
     claim: null,
     outputs: [],
     progress: { phase: 'queued', message: '等待 Agent 运行', percent: 0, updated: now, preview: null },
-    events: [{ time: now, type: 'created', message: '用户提交了修改要求' }],
+    events: [{
+      time: now, type: 'created',
+      message: originKind === 'agent-session' ? 'Agent 会话发布了任务' : '用户提交了修改要求',
+    }],
     error: null,
   }
   await mkdir(actionsDir(root), { recursive: true })

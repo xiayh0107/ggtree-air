@@ -92,6 +92,7 @@ export class LocalAgentRunner {
     this.onLog = onLog
     this.onRefresh = onRefresh || (async () => undefined)
     this.active = new Map()
+    this.starting = new Set()
     this.selection = null
     this.bridge = bridge || new AgentBridgeRegistry([
       createPiAdapter({ command: piCommand }),
@@ -136,6 +137,9 @@ export class LocalAgentRunner {
 
   async start(actionId) {
     if (this.active.has(actionId)) return this.active.get(actionId).completion
+    if (this.starting.has(actionId)) return null
+    this.starting.add(actionId)
+    try {
     const descriptor = await this.inspect()
     if (!descriptor.available) return null
     const selection = this.selection || await this.bridge.select(descriptor.id)
@@ -226,7 +230,10 @@ export class LocalAgentRunner {
         resolve(await getAction(this.root, actionId).catch(() => null))
       })
     })
-    return record.completion
+    return await record.completion
+    } finally {
+      this.starting.delete(actionId)
+    }
   }
 
   stopAll() {

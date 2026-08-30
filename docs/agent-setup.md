@@ -113,6 +113,16 @@ ggtree-air open --workspace <workspace> --agent claude
 
 默认 managed 模式会在用户提交节点指令后启动选定的 Pi、Codex CLI 或 Claude Code，不需要外层 Agent 再执行 `actions wait`。通过 `GET /api/agents` 确认全部 adapter 的安装、认证、兼容性以及当前选择。
 
+如果用户之后直接在当前 Agent 对话里提出绘图任务，必须把原话发布到已经打开的工作区：
+
+```bash
+ggtree-air actions publish --workspace <workspace> \
+  --author <当前 Agent 会话名> \
+  --instruction "<用户原话>"
+```
+
+不要只在聊天窗口中执行而让画布没有记录；也不要一边 publish、一边在父会话重复执行。managed workspace 的 Action inbox 会独立接单，画布与浏览器输入走完全相同的生命周期。
+
 **Codex Desktop、Claude Code 对话和 Pi 对话不得选择 `none`，也不得用后台 `actions wait` 冒充持久连接。** 对话客户端可能在工具回合结束、会话压缩或用户切页时终止后台命令；一旦如此，画布会失去消费者。
 
 只有由用户自己管理、能够保证进程生命周期的独立 Agent daemon，才可以明确使用 `GGTREE_AIR_AGENT=none`，并由该外部进程保持等待：
@@ -179,5 +189,6 @@ ggtree-air actions fail <id> \
 - 对话客户端使用匹配的 managed adapter，且画布明确显示“Agent 已连接”；
 - 只有真正独立的 Agent daemon 才允许使用 external `actions wait`；
 - 用户不需要手动执行任何安装或运行命令；
+- 浏览器节点输入和 Agent 对话输入都能发布到同一个 Action inbox；
 - 每个 Action 的执行过程会在画布里流式显示；
 - 只提交真实变化的产物。

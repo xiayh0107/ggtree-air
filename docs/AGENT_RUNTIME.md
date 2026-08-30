@@ -9,8 +9,8 @@ only verified files become output nodes.
 
 1. Creating/opening a workspace does not create an Action or an output.
 2. Importing a reference, tree, or table creates input Artifact nodes only.
-3. An Action exists only after a user submits a node prompt (or an external API
-   client explicitly creates it).
+3. An Action exists only after a user submits a node prompt, or an Agent session
+   explicitly publishes the same request with `actions publish`.
 4. The application never marks an Action complete on behalf of a Demo.
 5. A completed Action must contain one or more files committed by the Agent
    process through `artifacts commit`.
@@ -23,9 +23,10 @@ only verified files become output nodes.
 ```text
 real input Artifact(s)
         │
-        │ user selects context and submits a node prompt
+        ├─ browser node prompt
+        └─ Agent chat `actions publish`
         ▼
-pending Action
+pending Action in the shared inbox
         │
         │ LocalAgentRunner spawns an installed Agent CLI
         ▼

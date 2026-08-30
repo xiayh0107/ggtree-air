@@ -103,6 +103,24 @@ export async function startWorkspaceServer({
     claudeCommand,
     onRefresh: () => refreshWorkspacePresentation(root),
   })
+  let inboxBusy = false
+  const dispatchActionInbox = async () => {
+    if (inboxBusy || !(await agentRunner.inspect()).available) return
+    inboxBusy = true
+    try {
+      const pending = await listActions(root, { status: 'pending' })
+      for (const action of pending) {
+        void agentRunner.start(action.id).catch((error) => {
+          onLog?.(`[agent-inbox] ${error.stack || error.message}\n`)
+        })
+      }
+    } finally {
+      inboxBusy = false
+    }
+  }
+  const inboxTimer = setInterval(() => { void dispatchActionInbox() }, 500)
+  inboxTimer.unref?.()
+  setImmediate(() => { void dispatchActionInbox() })
   let rerunActive = false
   const server = createServer(async (request, response) => {
     try {
@@ -223,10 +241,12 @@ export async function startWorkspaceServer({
       }
       if (request.method === 'POST' && url.pathname === '/api/actions') {
         requireMutationToken(request, token)
-        const action = await createAction(root, await readJsonBody(request))
+        const action = await createAction(root, await readJsonBody(request), {
+          origin: { kind: 'canvas', actor: 'browser-user' },
+        })
         await refreshWorkspacePresentation(root)
         jsonResponse(response, 201, action)
-        setImmediate(() => { void agentRunner.start(action.id) })
+        setImmediate(() => { void dispatchActionInbox() })
         return
       }
       if (request.method === 'POST' && actionMatch?.[2] && actionMatch[2] !== 'preview') {
@@ -369,7 +389,10 @@ export async function startWorkspaceServer({
       } else response.destroy()
     }
   })
-  server.on('close', () => agentRunner.stopAll())
+  server.on('close', () => {
+    clearInterval(inboxTimer)
+    agentRunner.stopAll()
+  })
   await new Promise((resolve, reject) => {
     server.once('error', reject)
     server.listen(port, host, resolve)

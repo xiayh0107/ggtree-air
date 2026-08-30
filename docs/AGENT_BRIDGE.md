@@ -41,6 +41,14 @@ The executable overrides use the correctly cased names
 `GGTREE_AIR_CODEX_COMMAND`, `GGTREE_AIR_CLAUDE_COMMAND`, and
 `GGTREE_AIR_PI_COMMAND`.
 
+## Bidirectional interaction
+
+Browser prompts and Agent chat prompts publish into the same durable Action
+inbox. An Agent conversation uses `ggtree-air actions publish`; the workspace
+service watches pending Actions and dispatches them through the selected managed
+adapter. `origin.kind=agent-session` preserves where the request came from,
+without creating a second execution model.
+
 ## Bridge contracts
 
 An adapter owns only four responsibilities:

@@ -456,6 +456,9 @@
       return `<div class="action-request"><span>修改要求</span><blockquote>${escapeHtml(node.prompt || '自然语言修改')}</blockquote></div><ul class="action-summary">${node.operations.slice(0, 4).map((operation) => `<li>${escapeHtml(humanizeOperation(operation))}</li>`).join('')}</ul><div class="feedback-actions"><button class="primary-button" data-run-workflow>生成新产物</button></div>`
     }
     if (node.type === 'protocol-action') {
+      const requestLabel = node.action.origin?.kind === 'agent-session'
+        ? `Agent 会话发布${node.action.origin.actor ? ` · ${node.action.origin.actor}` : ''}`
+        : '用户要求'
       const statusText = {
         pending: '等待 Agent', claimed: `已由 ${node.action.claim?.agent_id || 'Agent'} 接收`,
         running: `${node.action.claim?.agent_id || 'Agent'} 正在处理`,
@@ -466,7 +469,7 @@
       const recentEvents = active
         ? (node.action.events || []).filter((event) => event.type === 'progress').slice(-2)
         : []
-      return `<div class="action-request"><span>用户要求</span><blockquote>${escapeHtml(node.action.instruction)}</blockquote></div>${active && progress.preview ? `<img class="agent-preview" src="/api/actions/${node.action.id}/preview?t=${encodeURIComponent(progress.updated || '')}" alt="Agent preview">` : ''}<div class="agent-action-status status-${escapeHtml(node.action.status)}">${node.action.status === 'running' ? '<i></i>' : ''}${escapeHtml(progress.message || statusText)}</div>${Number.isFinite(Number(progress.percent)) && active && node.action.status !== 'pending' ? `<div class="agent-progress"><span style="width:${Math.max(0, Math.min(100, Number(progress.percent)))}%"></span></div>` : ''}${recentEvents.length ? `<ul class="agent-events">${recentEvents.map((event) => `<li>${escapeHtml(event.message)}</li>`).join('')}</ul>` : ''}${node.action.error ? `<p class="feedback-copy">${escapeHtml(node.action.error.message)}</p>` : ''}`
+      return `<div class="action-request"><span>${escapeHtml(requestLabel)}</span><blockquote>${escapeHtml(node.action.instruction)}</blockquote></div>${active && progress.preview ? `<img class="agent-preview" src="/api/actions/${node.action.id}/preview?t=${encodeURIComponent(progress.updated || '')}" alt="Agent preview">` : ''}<div class="agent-action-status status-${escapeHtml(node.action.status)}">${node.action.status === 'running' ? '<i></i>' : ''}${escapeHtml(progress.message || statusText)}</div>${Number.isFinite(Number(progress.percent)) && active && node.action.status !== 'pending' ? `<div class="agent-progress"><span style="width:${Math.max(0, Math.min(100, Number(progress.percent)))}%"></span></div>` : ''}${recentEvents.length ? `<ul class="agent-events">${recentEvents.map((event) => `<li>${escapeHtml(event.message)}</li>`).join('')}</ul>` : ''}${node.action.error ? `<p class="feedback-copy">${escapeHtml(node.action.error.message)}</p>` : ''}`
     }
     if (node.type === 'external-artifact') {
       const artifact = node.artifact
@@ -1255,7 +1258,8 @@
     const action = node.action
     drawer.dataset.actionId = action.id
     const processEvents = (action.events || []).filter((event) => ['created', 'claimed', 'running', 'progress', 'completed', 'failed', 'interrupted'].includes(event.type))
-    drawer.innerHTML = `<div class="drawer-header"><div class="node-icon">${icon('feedback')}</div><div class="drawer-heading"><h2>Agent 运行过程</h2><p>${escapeHtml(action.claim?.agent_id || '等待 Agent')} · ${escapeHtml(action.status)}</p></div><div class="drawer-header-actions"><button class="icon-button" data-close>${icon('close')}</button></div></div><div class="info-drawer"><section class="info-section"><h3>用户要求</h3><p>${escapeHtml(action.instruction)}</p></section><section class="info-section"><h3>过程</h3><ol class="agent-process-list">${processEvents.map((event) => `<li><time>${escapeHtml(new Date(event.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))}</time><span>${escapeHtml(event.message)}</span></li>`).join('')}</ol></section><section class="info-section"><h3>详细工具日志</h3><div id="agent-run-activity"><p>正在读取 Agent 日志…</p></div></section></div>`
+    const requestTitle = action.origin?.kind === 'agent-session' ? 'Agent 会话发布' : '用户要求'
+    drawer.innerHTML = `<div class="drawer-header"><div class="node-icon">${icon('feedback')}</div><div class="drawer-heading"><h2>Agent 运行过程</h2><p>${escapeHtml(action.claim?.agent_id || '等待 Agent')} · ${escapeHtml(action.status)}</p></div><div class="drawer-header-actions"><button class="icon-button" data-close>${icon('close')}</button></div></div><div class="info-drawer"><section class="info-section"><h3>${requestTitle}</h3><p>${escapeHtml(action.instruction)}</p></section><section class="info-section"><h3>过程</h3><ol class="agent-process-list">${processEvents.map((event) => `<li><time>${escapeHtml(new Date(event.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))}</time><span>${escapeHtml(event.message)}</span></li>`).join('')}</ol></section><section class="info-section"><h3>详细工具日志</h3><div id="agent-run-activity"><p>正在读取 Agent 日志…</p></div></section></div>`
     drawer.querySelector('[data-close]').addEventListener('click', closeDrawer)
     openDrawer()
     try {
@@ -1541,15 +1545,20 @@
   const connection = document.getElementById('connection-status')
   connection.textContent = liveApi ? '后端已连接 · 正在检查 Agent' : '离线报告'
   connection.classList.toggle('live', liveApi)
-  if (liveApi) {
-    apiFetch('/api/agents').then((response) => {
+  async function refreshAgentConnection() {
+    try {
+      const response = await apiFetch('/api/agents')
       const available = Boolean(response.selected_agent)
       connection.textContent = available ? 'Agent 已连接' : 'Agent 未连接'
       connection.classList.toggle('live', available)
-    }).catch(() => {
+    } catch {
       connection.textContent = 'Agent 状态不可用'
       connection.classList.remove('live')
-    })
+    }
+  }
+  if (liveApi) {
+    void refreshAgentConnection()
+    setInterval(() => { void refreshAgentConnection() }, 2_000)
   }
   updateFeedbackCount()
   renderNodes()

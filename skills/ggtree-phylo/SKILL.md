@@ -53,6 +53,29 @@ ggtree-air actions wait --workspace <workspace> \
 Both modes use an actual Agent process. Neither mode permits the application to
 invent a completed history or copy a packaged output into an Action.
 
+## Publish a task from an Agent conversation
+
+When the user enters a new figure task in an existing Codex, Claude Code, or Pi
+conversation associated with an open workspace, do not keep the interaction
+only in chat. Publish the user's exact request into the Canvas:
+
+```bash
+ggtree-air actions publish --workspace <workspace> \
+  --author <agent-session-name> \
+  --instruction "<user's exact request>"
+```
+
+With no `--source`, all imported workspace input Artifacts are attached. For an
+explicit subset, repeat `--source workspace:<artifact-id>`; prior outputs use
+`--source action:<artifact-id>`. A managed workspace service discovers the
+pending Action and starts its configured Agent independently of the current chat
+turn. Publish exactly once: do not also execute the same request in the parent
+chat unless you explicitly claim that Action.
+
+The resulting Action must retain `origin.kind = agent-session`, appear in the
+same graph as browser-created Actions, and follow the same progress, log, and
+Artifact validation path.
+
 If reconnecting after an interruption, check existing work first:
 
 ```bash

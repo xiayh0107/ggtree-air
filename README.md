@@ -190,7 +190,18 @@ ggtree-air open --workspace results/my-task --agent codex
 ggtree-air open --workspace results/my-task --agent claude
 ```
 
-`auto` 会探测安装、登录状态和 CLI 兼容性，并按 `pi,codex,claude` 顺序选择第一个可用 Agent。设置 `--agent none` 后，任意其他 Agent 仍可通过 `actions wait` 接入同一协议。Bridge 的 adapter/registry 设计见 [`docs/AGENT_BRIDGE.md`](docs/AGENT_BRIDGE.md)。
+`auto` 会探测安装、登录状态和 CLI 兼容性，并按 `pi,codex,claude` 顺序选择第一个可用 Agent。设置 `--agent none` 后，任意其他长期运行的 Agent daemon 仍可通过 `actions wait` 接入同一协议。Bridge 的 adapter/registry 设计见 [`docs/AGENT_BRIDGE.md`](docs/AGENT_BRIDGE.md)。
+
+用户也可以直接在已有 Agent 会话窗口输入任务。该 Agent 应把原话发布到同一画布，而不是只在聊天中执行：
+
+```bash
+ggtree-air actions publish \
+  --workspace results/my-task \
+  --author codex-desktop \
+  --instruction "根据分组表给树着色，并生成图片与可复现 R 脚本"
+```
+
+默认会附带工作区全部输入 Artifact。工作区服务的 Action inbox 会接收该任务并由 managed Agent 执行；画布显示“Agent 会话发布”Action、真实过程和输出节点。
 
 ---
 
