@@ -577,10 +577,14 @@
           : node.type === 'external-artifact' && node.artifact.role !== 'agent-output' ? 'neutral' : 'success'
       const statusMark = footerTone === 'active' ? '<i class="activity-spinner"></i>'
         : footerTone === 'danger' ? '!' : footerTone === 'neutral' ? '•' : '✓'
+      const initialInput = node.type === 'external-artifact'
+        && ['reference', 'paper-reference', 'user-input'].includes(node.artifact.role)
+        && protocolActions.length === 0
       const footerAction = actionNode
         ? '<button type="button" class="activity-link" data-open-run>查看过程</button>'
         : node.type === 'external-artifact' && node.actionId
-          ? '<button type="button" class="activity-link" data-open-parent-run>查看过程</button>' : ''
+          ? '<button type="button" class="activity-link" data-open-parent-run>查看过程</button>'
+          : initialInput ? '<button type="button" class="activity-link start-task-link" data-start-task>开始任务</button>' : ''
       article.innerHTML = `<header class="node-header" data-drag-handle>
           <span class="node-icon">${icon(nodeIconName(node))}</span><span class="node-title">${escapeHtml(actionNode ? 'Agent 任务' : node.title)}</span>
           <span class="node-kicker">${node.type === 'tree' ? shortHash(revisionData(node.revision).scene.views.find((v) => v.layout === node.layout)?.artifact?.md5) : ''}</span>
@@ -600,6 +604,10 @@
         event.stopPropagation()
         openNode(node)
       }))
+      article.querySelector('[data-start-task]')?.addEventListener('click', (event) => {
+        event.stopPropagation()
+        openNodeComposer(node)
+      })
       article.querySelector('[data-open-run]')?.addEventListener('click', (event) => {
         event.stopPropagation()
         void openActionRunDrawer(node)
@@ -625,6 +633,10 @@
       article.querySelectorAll('[data-run-workflow]').forEach((button) => button.addEventListener('click', rerun))
       nodeLayer.appendChild(article)
     }
+    const hint = document.querySelector('.canvas-hint')
+    if (hint) hint.textContent = protocolActions.length === 0 && workspaceArtifacts.length
+      ? '点击任一输入节点的“开始任务”，描述你要生成的第一张图'
+      : '拖动空白平移 · 滚轮缩放 · 拖动节点整理'
     updateEdges()
     updateNodeComposerPosition()
   }

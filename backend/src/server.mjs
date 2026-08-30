@@ -6,6 +6,7 @@ import { createWorkspaceBranch, listWorkspaceBranches, loadWorkspace, mergeWorks
 import { pathExists, readJson, safeWorkspacePath } from './paths.mjs'
 import { JobManager } from './jobs.mjs'
 import { LocalAgentRunner, readAgentRunActivity } from './agent-runner.mjs'
+import { listAgentPresences } from './agent-presence.mjs'
 import { evaluateScenePredicate, pageSceneObjects } from './scene-query.mjs'
 import {
   claimAction, commitActionArtifacts, createAction, failAction, getAction,
@@ -116,9 +117,28 @@ export async function startWorkspaceServer({
       }
       if (request.method === 'GET' && url.pathname === '/api/agents') {
         const selected = await agentRunner.inspect()
+        const externalAgents = await listAgentPresences(root)
+        const externalById = new Map(externalAgents.map((agent) => [agent.id, agent]))
+        const managedAgents = (await agentRunner.listAgents()).map((agent) => {
+          const external = externalById.get(agent.id)
+          if (external) externalById.delete(agent.id)
+          return {
+            ...agent,
+            selected: agent.selected || (!selected.available && Boolean(external)),
+            external_connected: Boolean(external),
+            external_state: external?.state,
+          }
+        })
+        const extraExternal = [...externalById.values()].map((agent) => ({
+          id: agent.id, label: agent.id, transport: 'external', available: true,
+          auth_status: 'external', detail: 'External Agent heartbeat', selected: !selected.available,
+          external_connected: true, external_state: agent.state, active_actions: [],
+        }))
         jsonResponse(response, 200, {
-          selected_agent: selected.available ? selected.id : null,
-          agents: await agentRunner.listAgents(),
+          selected_agent: selected.available ? selected.id : externalAgents[0]?.id || null,
+          managed_agent: selected.available ? selected.id : null,
+          external_agents: externalAgents,
+          agents: [...managedAgents, ...extraExternal],
         })
         return
       }

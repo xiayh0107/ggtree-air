@@ -36,8 +36,14 @@ local Pi, Codex CLI, or Claude Code process. In that managed mode the Action is
 already claimed and running when this Skill loads; inspect it and execute it
 directly. Do not claim it a second time.
 
-An outer Agent may instead start the service with `GGTREE_AIR_AGENT=none`. In
-that explicit external mode, stay attached by blocking for the next Action:
+Do not use `GGTREE_AIR_AGENT=none` from Codex Desktop, Claude Code chat, or a
+Pi chat turn: those clients may terminate long-running background commands.
+Use the matching managed adapter so the workspace service owns future Agent
+processes independently of the setup conversation.
+
+Only a separately managed, long-lived Agent daemon may start the service with
+`GGTREE_AIR_AGENT=none`. In that explicit external mode, stay attached by
+blocking for the next Action:
 
 ```bash
 ggtree-air actions wait --workspace <workspace> \

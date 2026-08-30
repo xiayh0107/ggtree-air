@@ -14,6 +14,7 @@ import {
   waitForAction,
 } from './actions.mjs'
 import { bundledSkillPath, installBundledSkill, listBundledSkills } from './skill-manager.mjs'
+import { beginAgentPresence, pulseAgentPresence } from './agent-presence.mjs'
 
 const VERSION = '0.5.0'
 
@@ -289,13 +290,21 @@ async function actions(tokens) {
     assertKnownOptions(options, ['workspace', 'status', 'json', 'timeout', 'agent', 'no_claim'])
     if (!options.workspace) throw new Error('--workspace is required')
     if (action === 'wait') {
-      const result = await waitForAction(path.resolve(options.workspace), {
-        timeoutMs: Math.max(1, Number(options.timeout || 3600)) * 1000,
-        agentId: options.agent || 'external-agent',
-        claim: !options.no_claim,
-      })
-      console.log(JSON.stringify(result, null, 2))
-      return result ? 0 : 2
+      const root = path.resolve(options.workspace)
+      const agentId = options.agent || 'external-agent'
+      const presence = await beginAgentPresence(root, agentId, { state: 'waiting' })
+      try {
+        const result = await waitForAction(root, {
+          timeoutMs: Math.max(1, Number(options.timeout || 3600)) * 1000,
+          agentId,
+          claim: !options.no_claim,
+        })
+        if (result) await pulseAgentPresence(root, agentId, { state: 'running' })
+        console.log(JSON.stringify(result, null, 2))
+        return result ? 0 : 2
+      } finally {
+        await presence.close()
+      }
     }
     const values = await listActions(path.resolve(options.workspace), {
       status: action === 'next' ? 'pending' : options.status,
@@ -320,7 +329,12 @@ async function actions(tokens) {
   })
   else if (action === 'fail') result = await failAction(root, id, options.message, { agentId: options.agent })
   else throw new Error('actions command must be next, list, show, claim, running, progress, or fail')
-  if (action !== 'show') await refreshWorkspacePresentation(root)
+  if (action !== 'show') {
+    await pulseAgentPresence(root, options.agent, {
+      state: action === 'fail' ? 'failed' : 'running',
+    })
+    await refreshWorkspacePresentation(root)
+  }
   console.log(JSON.stringify(result, null, 2))
   return 0
 }
@@ -357,6 +371,7 @@ async function artifacts(tokens) {
   }
   const root = path.resolve(options.workspace)
   const result = await commitActionArtifacts(root, id, extracted.files, { agentId: options.agent })
+  await pulseAgentPresence(root, options.agent, { state: 'completed' })
   await refreshWorkspacePresentation(root)
   console.log(JSON.stringify(result, null, 2))
   return 0

@@ -84,7 +84,9 @@ ggtree-air actions wait --workspace results/task --agent my-agent --timeout 3600
 ```
 
 This preserves the Agent-independent protocol without creating a second fake
-execution path. Adapter details are specified in `docs/AGENT_BRIDGE.md`.
+execution path. External mode requires a genuinely long-lived daemon; a chat
+client background terminal is not a valid lifecycle owner. Adapter details are
+specified in `docs/AGENT_BRIDGE.md`.
 
 ## Run storage
 

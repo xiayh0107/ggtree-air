@@ -9,7 +9,7 @@
 把下面整段复制到任意支持命令行和 Skill 的 Agent 对话窗口。Agent 会替你完成安装、环境检查、Skill 配置和首次使用；**不要自己执行里面的命令**。
 
 ```text
-请阅读 https://github.com/xiayh0107/ggtree-air/blob/main/docs/agent-setup.md，严格按照文档为我安装并配置 ggtree-air。完成后请运行环境检查，安装或加载包内的 ggtree-phylo Skill；然后检查当前目录中的树和关联数据，创建并打开第一个节点工作流，并保持等待画布中的 Action，持续处理我的修改、预览和产物提交，直到我说满意。除非遇到必须由我决定的科学问题，否则不要让我手动执行命令、选择端口或配置 R 环境。
+请阅读 https://github.com/xiayh0107/ggtree-air/blob/main/docs/agent-setup.md，严格按照文档为我安装并配置 ggtree-air。不要用 Context7 或通用 ggtree 文档替代项目文档；如果远程页面因私有仓库返回 404，先读取当前仓库的 `docs/agent-setup.md`，本地也不存在时应明确报告无访问权限而不是猜测。完成后请运行环境检查，安装或加载包内的 ggtree-phylo Skill；检查当前目录中的树和关联数据，创建只含真实输入的节点工作流并打开画布。必须使用与你当前客户端匹配的托管 Agent Bridge：Codex 使用 `--agent codex`，Claude Code 使用 `--agent claude`，Pi 使用 `--agent pi`；不要使用 `--agent none`，也不要运行长时间 `actions wait`，因为聊天客户端可能终止后台命令。请确认画布显示“Agent 已连接”，此后每个节点 Action 由 Bridge 启动独立 Agent 进程持续处理。除非遇到必须由我决定的科学问题，否则不要让我手动执行命令、选择端口或配置 R 环境。
 ```
 
 GitHub 代码块右上角可以直接复制。
@@ -17,7 +17,7 @@ GitHub 代码块右上角可以直接复制。
 ### 已经接入后的日常提示词
 
 ```text
-使用 ggtree-phylo Skill 处理当前目录的系统发育树，打开节点画布，并持续等待和处理我的画布反馈直到我满意。
+使用 ggtree-phylo Skill 处理当前目录的系统发育树，以与你当前客户端匹配的 managed Agent Bridge 打开节点画布；不要使用 external/none 或后台 actions wait。确认画布显示 Agent 已连接，让 Bridge 持续处理我的节点反馈直到我满意。
 ```
 
 Pi 也可以显式触发：

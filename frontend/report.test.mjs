@@ -6,7 +6,9 @@ import path from 'node:path'
 import { chromium } from 'playwright'
 import { normalizeRunSpec } from '../backend/src/contracts.mjs'
 import { PROJECT_ROOT } from '../backend/src/paths.mjs'
-import { createWorkspace } from '../backend/src/workspace.mjs'
+import { createArtifactWorkspace, createWorkspace } from '../backend/src/workspace.mjs'
+import { importWorkspaceArtifact } from '../backend/src/actions.mjs'
+import { beginAgentPresence } from '../backend/src/agent-presence.mjs'
 import { startWorkspaceServer } from '../backend/src/server.mjs'
 
 test('canvas report exposes semantic nodes and persists feedback', { timeout: 180_000 }, async () => {
@@ -155,6 +157,45 @@ test('canvas report exposes semantic nodes and persists feedback', { timeout: 18
   } finally {
     if (browser) await browser.close()
     if (service) await new Promise((resolve) => service.server.close(resolve))
+    await rm(parent, { recursive: true, force: true })
+  }
+})
+
+test('artifact-first canvas exposes a visible first-task action and external Agent presence', { timeout: 60_000 }, async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), 'ggtree-air-first-task-ui-'))
+  const root = path.join(parent, 'workspace')
+  let browser
+  let service
+  let presence
+  try {
+    await createArtifactWorkspace({ root, title: 'first task UI' })
+    const tree = path.join(parent, 'tree.nwk')
+    const metadata = path.join(parent, 'metadata.tsv')
+    await writeFile(tree, '(a:1,b:1);\n')
+    await writeFile(metadata, 'tip\tgroup\na\tA\nb\tB\n')
+    await importWorkspaceArtifact(root, tree, { role: 'user-input' })
+    await importWorkspaceArtifact(root, metadata, { role: 'user-input' })
+    presence = await beginAgentPresence(root, 'codex', { state: 'waiting' })
+    service = await startWorkspaceServer({
+      root, port: 0, agentAdapter: 'none',
+      piCommand: path.join(parent, 'missing-pi'),
+      codexCommand: path.join(parent, 'missing-codex'),
+      claudeCommand: path.join(parent, 'missing-claude'),
+      onLog: () => undefined,
+    })
+    browser = await chromium.launch({ headless: true })
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } })
+    await page.goto(service.url, { waitUntil: 'networkidle' })
+    await page.waitForFunction(() => document.querySelector('#connection-status')?.textContent === 'Agent 已连接')
+    assert.equal(await page.locator('[data-start-task]').count(), 2)
+    assert.match(await page.locator('.canvas-hint').textContent(), /开始任务/)
+    await page.locator('[data-start-task]').first().click()
+    assert.equal(await page.locator('#node-composer:not([hidden])').count(), 1)
+    assert.equal(await page.locator('[data-composer-source]:checked').count(), 2)
+  } finally {
+    if (browser) await browser.close()
+    if (service) await new Promise((resolve) => service.server.close(resolve))
+    if (presence) await presence.close()
     await rm(parent, { recursive: true, force: true })
   }
 })

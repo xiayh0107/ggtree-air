@@ -15,7 +15,7 @@
 .node-body.no-inset{padding:0}
 .node-footer{height:28px;gap:8px;padding:0 12px;font-size:10.5px}
 .node-footer>button,.node-footer .activity-link{height:24px;margin-left:auto;border:0;border-radius:6px;padding:0 6px;background:transparent;color:var(--gg-muted);font-size:10px;font-weight:500}
-.node-footer>button:hover,.node-footer .activity-link:hover{background:var(--gg-subtle);color:var(--gg-primary)}
+.node-footer>button:hover,.node-footer .activity-link:hover{background:var(--gg-subtle);color:var(--gg-primary)}.node-footer .start-task-link{background:#EEF5FF;color:var(--gg-primary);font-weight:600}.node-footer .start-task-link:hover{background:#DDEBFF}
 .activity-state{display:flex;min-width:0;align-items:center;gap:6px;font-weight:500}
 .activity-state.success{color:var(--gg-success)}
 .activity-state.active{color:var(--gg-primary)}

@@ -1,6 +1,6 @@
 # ggtree-air — Agent 安装与首次使用指南
 
-> 本文是写给 Agent 的。请替用户完成安装、环境检查、Skill 配置和首次工作流，不要把命令转交给用户。
+> 本文是写给 Agent 的。请替用户完成安装、环境检查、Skill 配置和首次工作流，不要把命令转交给用户。不要使用 Context7 或底层 ggtree 文档替代本文；远程私有仓库不可访问时只允许回退到当前 checkout 的本地文档。
 
 ## 目标
 
@@ -113,7 +113,9 @@ ggtree-air open --workspace <workspace> --agent claude
 
 默认 managed 模式会在用户提交节点指令后启动选定的 Pi、Codex CLI 或 Claude Code，不需要外层 Agent 再执行 `actions wait`。通过 `GET /api/agents` 确认全部 adapter 的安装、认证、兼容性以及当前选择。
 
-如果明确使用 `GGTREE_AIR_AGENT=none` 启动服务，则由外层 Agent 保持等待：
+**Codex Desktop、Claude Code 对话和 Pi 对话不得选择 `none`，也不得用后台 `actions wait` 冒充持久连接。** 对话客户端可能在工具回合结束、会话压缩或用户切页时终止后台命令；一旦如此，画布会失去消费者。
+
+只有由用户自己管理、能够保证进程生命周期的独立 Agent daemon，才可以明确使用 `GGTREE_AIR_AGENT=none`，并由该外部进程保持等待：
 
 ```bash
 ggtree-air actions wait \
@@ -174,7 +176,8 @@ ggtree-air actions fail <id> \
 - Runtime 与 R 环境通过检查；
 - canonical Skill 已加载；
 - 首个工作区和画布已经打开；
-- managed Agent 可用，或 external Agent 正在 `actions wait`；
+- 对话客户端使用匹配的 managed adapter，且画布明确显示“Agent 已连接”；
+- 只有真正独立的 Agent daemon 才允许使用 external `actions wait`；
 - 用户不需要手动执行任何安装或运行命令；
 - 每个 Action 的执行过程会在画布里流式显示；
 - 只提交真实变化的产物。
