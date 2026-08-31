@@ -53,6 +53,8 @@ ggtree-air 是一个让人和 Agent 围绕科研图片协作的节点画布。
 
 ## 用户如何使用
 
+![ggtree-air 节点画布：树文件和分组表经过 Agent 任务生成系统发育树](docs/images/ggtree-air-canvas-workflow.png)
+
 ### 1. 让 Agent 建立真实输入画布
 
 你只需要描述目标：
@@ -216,75 +218,6 @@ ggtree-air skills install ggtree-phylo --agent pi --force
 ```
 
 公开 npm/GitHub Release 的分发说明见 [`docs/DISTRIBUTION.md`](docs/DISTRIBUTION.md)。
-
----
-
-<details>
-<summary><strong>给 Agent 和集成开发者的协议入口</strong></summary>
-
-### 创建并打开工作区
-
-```bash
-ggtree-air auto --input tree.nwk --metadata traits.csv --out results/tree
-ggtree-air open --workspace results/tree
-```
-
-### 打开前端后保持等待
-
-Agent 不应结束回合并要求用户回来手动通知，而应阻塞等待浏览器 Action：
-
-```bash
-ggtree-air actions wait \
-  --workspace results/tree \
-  --agent my-agent \
-  --timeout 3600
-```
-
-浏览器提交后，命令立即返回并原子 claim 该 Action。
-
-### 流式进度
-
-```bash
-ggtree-air actions running <id> --workspace results/tree --agent my-agent
-
-ggtree-air actions progress <id> \
-  --workspace results/tree \
-  --agent my-agent \
-  --phase preview \
-  --percent 75 \
-  --message "候选已生成，正在检查标签重叠" \
-  --preview candidate.png
-```
-
-### 提交一个或多个真实产物
-
-```bash
-ggtree-air artifacts commit <id> \
-  --workspace results/tree \
-  --agent my-agent \
-  --file candidate-a.png \
-  --file candidate-b.png
-```
-
-### 失败时诚实返回
-
-```bash
-ggtree-air actions fail <id> \
-  --workspace results/tree --agent my-agent \
-  --message "无法从现有数据支持该修改"
-```
-
-### Skill
-
-```bash
-ggtree-air skills list
-ggtree-air skills path
-ggtree-air skills install ggtree-phylo --agent pi --force
-```
-
-Action/API Schema 位于 [`docs/schemas/`](docs/schemas/)。
-
-</details>
 
 ---
 
